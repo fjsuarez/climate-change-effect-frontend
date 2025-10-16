@@ -1,7 +1,7 @@
 // TypeScript types matching the backend API
 
 export interface Region {
-  type: string;
+  type: 'Feature';
   properties: {
     NUTS_ID: string;
     name?: string;
@@ -11,7 +11,7 @@ export interface Region {
     type: string;
     coordinates: number[][][] | number[][][][];
   };
-  [key: string]: unknown;  // Allow additional top-level properties
+  id?: string | number;
 }
 
 export interface GeoJSONResponse {
