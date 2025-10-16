@@ -8,7 +8,7 @@ export interface Region {
     [key: string]: unknown;  // Allow additional properties
   };
   geometry: {
-    type: string;
+    type: 'Polygon' | 'MultiPolygon';
     coordinates: number[][][] | number[][][][];
   };
   id?: string | number;
