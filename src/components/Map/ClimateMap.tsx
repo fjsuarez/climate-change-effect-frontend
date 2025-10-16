@@ -148,7 +148,7 @@ export default function ClimateMap() {
     if (!map || !geoJsonWithValues) return;
 
     // Clear previous states
-    geoJsonWithValues.features.forEach((feature: any) => {
+    geoJsonWithValues.features.forEach((feature: { properties: { NUTS_ID: string } }) => {
       const nutsId = feature.properties.NUTS_ID;
       map.setFeatureState(
         { source: 'climate-data', id: nutsId },
@@ -181,7 +181,9 @@ export default function ClimateMap() {
         onClick={handleClick}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        onMove={(evt: any) => setMapView(evt.viewState.zoom, [evt.viewState.longitude, evt.viewState.latitude])}
+        onMove={(evt: { viewState: { zoom: number; longitude: number; latitude: number } }) => 
+          setMapView(evt.viewState.zoom, [evt.viewState.longitude, evt.viewState.latitude])
+        }
         attributionControl={false}
       >
         {geoJsonWithValues && (
