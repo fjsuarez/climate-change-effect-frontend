@@ -1,18 +1,15 @@
 // TypeScript types matching the backend API
 
-export interface Region {
-  type: 'Feature';
-  properties: {
-    NUTS_ID: string;
-    name?: string;
-    [key: string]: unknown;  // Allow additional properties
-  };
-  geometry: {
-    type: 'Polygon' | 'MultiPolygon';
-    coordinates: number[][][] | number[][][][];
-  };
-  id?: string | number;
+import type { Feature, Polygon, MultiPolygon } from 'geojson';
+
+export interface RegionProperties {
+  NUTS_ID: string;
+  name?: string;
+  value?: number | null;
+  [key: string]: unknown;
 }
+
+export type Region = Feature<Polygon | MultiPolygon, RegionProperties>;
 
 export interface GeoJSONResponse {
   type: 'FeatureCollection';
