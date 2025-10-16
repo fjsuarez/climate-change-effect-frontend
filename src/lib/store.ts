@@ -1,7 +1,7 @@
 // Zustand store for global state management
 
 import { create } from 'zustand';
-import type { MapState, ClimateMetric } from './types';
+import type { MapState } from './types';
 
 interface AppStore extends MapState {
   // Actions

@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
-import { CLIMATE_METRICS, DATE_RANGE } from '@/lib/types';
+import { CLIMATE_METRICS, DATE_RANGE, type ClimateMetric } from '@/lib/types';
 import { Play, Pause } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useMetricSnapshot } from '@/hooks/useClimateData';
@@ -21,7 +21,7 @@ export default function MapControls() {
 
   // Check if current data is loading
   const { isFetching } = useMetricSnapshot(
-    selectedMetric as any,
+    selectedMetric as ClimateMetric,
     selectedYear,
     selectedWeek
   );

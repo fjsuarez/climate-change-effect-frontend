@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import Map, { Source, Layer, MapRef, ViewStateChangeEvent } from 'react-map-gl/mapbox';
-import type { MapMouseEvent } from 'react-map-gl/mapbox';
+import { useEffect, useRef, useState, useMemo } from 'react';
+import Map, { Source, Layer, MapRef } from 'react-map-gl/mapbox';
+import type { MapMouseEvent } from 'mapbox-gl';
 import { useAppStore } from '@/lib/store';
 import { useRegions, useMetricSnapshot, useMetricRange } from '@/hooks/useClimateData';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -43,27 +43,31 @@ export default function ClimateMap() {
   // Fetch global range for the metric (for consistent color scale)
   const { data: metricRange } = useMetricRange(selectedMetric as ClimateMetric);
 
-  // Merge regions with metric values
-  const geoJsonWithValues = regionsData && metricData ? {
-    type: 'FeatureCollection' as const,
-    features: regionsData.features.map((feature: any) => ({
-      ...feature,
-      id: feature.properties.NUTS_ID, // Set id for feature-state
-      properties: {
-        ...feature.properties,
-        value: metricData[feature.properties.NUTS_ID] || null
-      }
-    }))
-  } : null;
+  // Merge regions with metric values - memoized to prevent unnecessary re-renders
+  const geoJsonWithValues = useMemo(() => {
+    if (!regionsData || !metricData) return null;
+    
+    return {
+      type: 'FeatureCollection' as const,
+      features: regionsData.features.map((feature: { properties: { NUTS_ID: string }; [key: string]: unknown }) => ({
+        ...feature,
+        id: feature.properties.NUTS_ID,
+        properties: {
+          ...feature.properties,
+          value: metricData[feature.properties.NUTS_ID] || null
+        }
+      }))
+    };
+  }, [regionsData, metricData]);
 
   // Use global min/max for consistent scale, or fallback to defaults
   const minValue = metricRange?.min_value ?? -20;
   const maxValue = metricRange?.max_value ?? 40;
 
   // Choropleth layer style with zoom-based filtering
-  const dataLayer: any = {
+  const dataLayer = {
     id: 'climate-data',
-    type: 'fill',
+    type: 'fill' as const,
     paint: {
       'fill-color': [
         'interpolate',
@@ -90,9 +94,9 @@ export default function ClimateMap() {
     ],
   };
 
-  const outlineLayer: any = {
+  const outlineLayer = {
     id: 'climate-outline',
-    type: 'line',
+    type: 'line' as const,
     paint: {
       'line-color': '#ffffff',
       'line-width': [
@@ -112,18 +116,18 @@ export default function ClimateMap() {
   };
 
   // Handle region click
-  const handleClick = (event: any) => {
+  const handleClick = (event: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
     const feature = event.features?.[0];
-    if (feature) {
+    if (feature && feature.properties) {
       const nutsId = feature.properties.NUTS_ID;
       setSelectedRegion(nutsId);
     }
   };
 
   // Handle hover
-  const handleMouseMove = (event: any) => {
+  const handleMouseMove = (event: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
     const feature = event.features?.[0];
-    if (feature) {
+    if (feature && feature.properties) {
       setHoveredRegion(feature.properties.NUTS_ID);
       if (mapRef.current) {
         mapRef.current.getMap().getCanvas().style.cursor = 'pointer';
