@@ -49,7 +49,7 @@ export default function ClimateMap() {
     
     return {
       type: 'FeatureCollection' as const,
-      features: regionsData.features.map((feature: { properties: { NUTS_ID: string }; [key: string]: unknown }) => ({
+      features: regionsData.features.map((feature) => ({
         ...feature,
         id: feature.properties.NUTS_ID,
         properties: {

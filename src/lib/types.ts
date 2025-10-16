@@ -4,19 +4,14 @@ export interface Region {
   type: string;
   properties: {
     NUTS_ID: string;
-    LEVL_CODE: number;
-    CNTR_CODE: string;
-    NAME_LATN: string;
-    NUTS_NAME: string;
-    MOUNT_TYPE: number;
-    URBN_TYPE: number;
-    COAST_TYPE: number;
-    FID: string;
+    name?: string;
+    [key: string]: unknown;  // Allow additional properties
   };
   geometry: {
     type: string;
     coordinates: number[][][] | number[][][][];
   };
+  [key: string]: unknown;  // Allow additional top-level properties
 }
 
 export interface GeoJSONResponse {
