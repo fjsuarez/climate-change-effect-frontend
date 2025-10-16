@@ -77,13 +77,13 @@ export default function ClimateMap() {
         0, '#00ffff',
         20, '#ffff00',
         40, '#ff0000',
-      ] as unknown,
+      ] as any,
       'fill-opacity': [
         'case',
         ['boolean', ['feature-state', 'hover'], false],
         0.8,
         0.6,
-      ] as unknown,
+      ] as any,
     },
     filter: [
       'any',
@@ -91,7 +91,7 @@ export default function ClimateMap() {
       ['all', ['<', ['zoom'], 5], ['==', ['length', ['get', 'NUTS_ID']], 2]],
       // Show NUTS 3 (regions - 5 chars) at zoom >= 5
       ['all', ['>=', ['zoom'], 5], ['==', ['length', ['get', 'NUTS_ID']], 5]],
-    ] as unknown,
+    ] as any,
   };
 
   const outlineLayer = {
@@ -104,7 +104,7 @@ export default function ClimateMap() {
         ['boolean', ['feature-state', 'selected'], false],
         3,
         1,
-      ] as unknown,
+      ] as any,
     },
     filter: [
       'any',
@@ -112,7 +112,7 @@ export default function ClimateMap() {
       ['all', ['<', ['zoom'], 5], ['==', ['length', ['get', 'NUTS_ID']], 2]],
       // Show NUTS 3 (regions - 5 chars) at zoom >= 5
       ['all', ['>=', ['zoom'], 5], ['==', ['length', ['get', 'NUTS_ID']], 5]],
-    ] as unknown,
+    ] as any,
   };
 
   // Handle region click

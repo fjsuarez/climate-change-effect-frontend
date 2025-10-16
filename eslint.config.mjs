@@ -12,6 +12,11 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off', // Allow any for complex Mapbox expressions
+    },
+  },
+  {
     ignores: [
       "node_modules/**",
       ".next/**",
