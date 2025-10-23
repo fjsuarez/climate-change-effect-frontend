@@ -7,6 +7,7 @@ import { X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import TimeSeriesChart from '@/components/Charts/TimeSeriesChart';
 import ScatterPlot from '@/components/Charts/ScatterPlot';
+import { RelativeRiskTab } from './RelativeRiskTab';
 import { CLIMATE_METRICS, ClimateMetric } from '@/lib/types';
 import { useState } from 'react';
 
@@ -77,9 +78,10 @@ export default function RegionDetailModal() {
 
           {data && (
             <Tabs defaultValue="timeseries" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="timeseries">Time Series</TabsTrigger>
                 <TabsTrigger value="correlation">Correlation</TabsTrigger>
+                <TabsTrigger value="relativerisk">Relative Risk</TabsTrigger>
                 <TabsTrigger value="summary">Summary</TabsTrigger>
               </TabsList>
 
@@ -123,6 +125,11 @@ export default function RegionDetailModal() {
                     <ScatterPlot data={data} height={isMobile ? 250 : 400} />
                   </div>
                 )}
+              </TabsContent>
+
+              {/* Relative Risk Tab */}
+              <TabsContent value="relativerisk" className="space-y-4">
+                <RelativeRiskTab nutsId={selectedRegion} />
               </TabsContent>
 
               {/* Summary Tab */}
