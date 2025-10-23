@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { climateAPI } from '@/lib/api';
 import type { BSplineEvaluation } from '@/lib/api';
 import {
@@ -83,7 +84,7 @@ export default function CoefficientsPage() {
           <p className="text-gray-600">
             Quadratic B-spline curves showing temperature-mortality relationships centered at the 
             MMT (Minimum Mortality Temperature). Knots are placed at the 10th, 75th, and 90th 
-            percentiles of each city's temperature distribution.
+            percentiles of each city&apos;s temperature distribution.
           </p>
         </div>
 
@@ -479,12 +480,12 @@ export default function CoefficientsPage() {
 
         {/* Back to main map */}
         <div className="mt-6 text-center">
-          <a
+          <Link
             href="/"
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             ← Back to Climate Map
-          </a>
+          </Link>
         </div>
       </div>
     </div>
