@@ -109,63 +109,159 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
   };
 
   // Memoized histogram to prevent re-renders when only hoveredPoint changes
+  // Note: We actually need this to re-render for highlighting, but it won't affect the LineChart
   const histogramChart = useMemo(() => {
     if (!bsplineData || !histogramData) return null;
+    
+    // Find the highlighted bin for the tooltip
+    const highlightedBin = hoveredPoint ? histogramData.data.find(b => 
+      b.bin_start <= hoveredPoint.temperature && 
+      hoveredPoint.temperature < b.bin_end
+    ) : null;
     
     return (
       <div className="mt-6">
         <h3 className="text-sm font-semibold text-gray-700 mb-2">
           Temperature Distribution (1990-2019)
         </h3>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={histogramData.data}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="bin_center"
-              type="number"
-              domain={[
-                bsplineData.data[0].temperature,
-                bsplineData.data[bsplineData.data.length - 1].temperature
-              ]}
-              label={{
-                value: 'Temperature (°C)',
-                position: 'insideBottom',
-                offset: -5,
-                style: { fontSize: '12px' }
+        <div className="relative">
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart 
+              data={histogramData.data}
+              onMouseMove={(e: any) => {
+                // Update hoveredPoint when hovering over histogram bars
+                if (e && e.activePayload && e.activePayload[0]) {
+                  const bin = e.activePayload[0].payload;
+                  // Find the corresponding point in bsplineData at this temperature
+                  const temp = bin.bin_center;
+                  const bsplinePoint = bsplineData.data.reduce((closest, point) => {
+                    return Math.abs(point.temperature - temp) < Math.abs(closest.temperature - temp) 
+                      ? point 
+                      : closest;
+                  });
+                  
+                  setHoveredPoint({
+                    temperature: bsplinePoint.temperature,
+                    percentile: bsplinePoint.percentile,
+                    relativeRisk: bsplinePoint.value,
+                  });
+                }
               }}
-              ticks={[1, 25, 50, 75, 99].map(p => 
-                findClosestPercentile(bsplineData.data, p).temperature
+              onMouseLeave={() => {
+                setHoveredPoint(null);
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="bin_center"
+                type="number"
+                domain={[
+                  bsplineData.data[0].temperature,
+                  bsplineData.data[bsplineData.data.length - 1].temperature
+                ]}
+                label={{
+                  value: 'Temperature (°C)',
+                  position: 'insideBottom',
+                  offset: -5,
+                  style: { fontSize: '12px' }
+                }}
+                ticks={[1, 25, 50, 75, 99].map(p => 
+                  findClosestPercentile(bsplineData.data, p).temperature
+                )}
+                tickFormatter={(temp: number) => temp.toFixed(1)}
+                tick={{ fontSize: 11 }}
+              />
+              <YAxis
+                label={{
+                  value: 'Days',
+                  angle: -90,
+                  position: 'insideLeft',
+                  style: { fontSize: '12px' }
+                }}
+                tick={{ fontSize: 11 }}
+              />
+              <Tooltip
+                contentStyle={{ fontSize: '11px' }}
+                cursor={false}
+                content={(props: any) => {
+                  // Default tooltip when hovering directly on histogram
+                  if (props.active && props.payload && props.payload.length > 0) {
+                    const data = props.payload[0].payload;
+                    return (
+                      <div className="bg-white border border-gray-300 rounded shadow-lg p-2" style={{ fontSize: '11px' }}>
+                        <p className="font-semibold">{data.bin_center.toFixed(1)}°C</p>
+                        <p className="text-blue-600">{data.count.toLocaleString()} days</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Bar
+                dataKey="count"
+                fill="#60a5fa"
+                opacity={0.7}
+                shape={(props: any) => {
+                  const { x, y, width, height, payload } = props;
+                  
+                  // Check if this bar should be highlighted
+                  let isHighlighted = false;
+                  if (hoveredPoint) {
+                    // Check if temperature falls in this bin's range
+                    // Use >= for start and < for end to avoid overlapping bins
+                    isHighlighted = payload.bin_start <= hoveredPoint.temperature && 
+                                   hoveredPoint.temperature < payload.bin_end;
+                  }
+                  
+                  return (
+                    <rect
+                      x={x}
+                      y={y}
+                      width={width}
+                      height={height}
+                      fill={isHighlighted ? '#2563eb' : '#60a5fa'}
+                      opacity={isHighlighted ? 1 : 0.7}
+                      stroke={isHighlighted ? '#1e40af' : 'none'}
+                      strokeWidth={isHighlighted ? 2 : 0}
+                    />
+                  );
+                }}
+              />
+              {/* Vertical reference line at hovered temperature */}
+              {hoveredPoint && (
+                <ReferenceLine
+                  x={hoveredPoint.temperature}
+                  stroke="#ef4444"
+                  strokeWidth={2}
+                  strokeDasharray="3 3"
+                />
               )}
-              tickFormatter={(temp: number) => temp.toFixed(1)}
-              tick={{ fontSize: 11 }}
-            />
-            <YAxis
-              label={{
-                value: 'Days',
-                angle: -90,
-                position: 'insideLeft',
-                style: { fontSize: '12px' }
+            </BarChart>
+          </ResponsiveContainer>
+          
+          {/* Custom positioned tooltip for synchronized hover */}
+          {highlightedBin && (
+            <div 
+              className="absolute bg-white border border-gray-300 rounded shadow-lg p-2 pointer-events-none"
+              style={{ 
+                fontSize: '11px',
+                top: '10px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 10
               }}
-              tick={{ fontSize: 11 }}
-            />
-            <Tooltip
-              contentStyle={{ fontSize: '11px' }}
-              formatter={(value: number) => [`${value.toLocaleString()} days`, 'Frequency']}
-              labelFormatter={(label: number) => `${label.toFixed(1)}°C`}
-            />
-            <Bar
-              dataKey="count"
-              fill="#60a5fa"
-              opacity={0.7}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+            >
+              <p className="font-semibold">{highlightedBin.bin_center.toFixed(1)}°C</p>
+              <p className="text-blue-600">{highlightedBin.count.toLocaleString()} days</p>
+            </div>
+          )}
+        </div>
         <p className="text-xs text-gray-500 mt-1 text-center">
           Total: {histogramData.total_days.toLocaleString()} days (1st-99th percentile range)
         </p>
       </div>
     );
-  }, [bsplineData, histogramData]);
+  }, [bsplineData, histogramData, hoveredPoint]);
 
   // Memoized single age group LineChart to prevent re-renders when only hoveredPoint changes
   const singleAgeGroupChart = useMemo(() => {
