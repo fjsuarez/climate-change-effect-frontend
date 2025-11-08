@@ -181,6 +181,27 @@ class ClimateAPI {
 
     return response.json();
   }
+
+  /**
+   * Fetch temperature histogram for a specific city
+   */
+  async getTemperatureHistogram(
+    urauCode: string,
+    bins: number = 30
+  ): Promise<TemperatureHistogram> {
+    const params = new URLSearchParams({
+      bins: bins.toString(),
+    });
+
+    const url = `${this.baseUrl}/api/v1/temperature-histogram/${urauCode}?${params.toString()}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch temperature histogram: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
 }
 
 // B-Spline coefficient type
@@ -219,6 +240,22 @@ export interface BSplineEvaluation {
     percentile: number;
     value: number;
   }>;
+}
+
+// Temperature histogram bin
+export interface TemperatureHistogramBin {
+  bin_start: number;
+  bin_end: number;
+  bin_center: number;
+  count: number;
+}
+
+// Temperature histogram result
+export interface TemperatureHistogram {
+  urau_code: string;
+  bins_total: number;
+  total_days: number;
+  data: TemperatureHistogramBin[];
 }
 
 // Export singleton instance
