@@ -36,6 +36,7 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<string>('20-44');
   const [showAllAgeGroups, setShowAllAgeGroups] = useState<boolean>(false);
   const [usePercentiles, setUsePercentiles] = useState<boolean>(false); // Default to temperature view
+  const [selectedBins, setSelectedBins] = useState<number>(30); // Default to 30 bins
   const [hoveredPoint, setHoveredPoint] = useState<{
     temperature: number;
     percentile: number;
@@ -81,8 +82,8 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
 
   // Fetch temperature histogram for the selected city
   const { data: histogramData } = useQuery<TemperatureHistogram>({
-    queryKey: ['temperature-histogram', selectedCity],
-    queryFn: () => climateAPI.getTemperatureHistogram(selectedCity, 30),
+    queryKey: ['temperature-histogram', selectedCity, selectedBins],
+    queryFn: () => climateAPI.getTemperatureHistogram(selectedCity, selectedBins),
     enabled: !!selectedCity,
   });
 
@@ -121,9 +122,26 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
     
     return (
       <div className="mt-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">
-          Temperature Distribution (1990-2019)
-        </h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-semibold text-gray-700">
+            Temperature Distribution (1990-2019)
+          </h3>
+          <div className="flex items-center gap-2">
+            <label htmlFor="bins-select" className="text-xs text-gray-600">
+              Bins:
+            </label>
+            <select
+              id="bins-select"
+              value={selectedBins}
+              onChange={(e) => setSelectedBins(Number(e.target.value))}
+              className="text-xs border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value={20}>20</option>
+              <option value={30}>30</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+        </div>
         <div className="relative">
           <ResponsiveContainer width="100%" height={200}>
             <BarChart 
