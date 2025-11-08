@@ -33,7 +33,12 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [selectedAgeGroup, setSelectedAgeGroup] = useState<string>('20-44');
   const [showAllAgeGroups, setShowAllAgeGroups] = useState<boolean>(false);
-  const [usePercentiles, setUsePercentiles] = useState<boolean>(true);
+  const [usePercentiles, setUsePercentiles] = useState<boolean>(false); // Default to temperature view
+  const [hoveredPoint, setHoveredPoint] = useState<{
+    temperature: number;
+    percentile: number;
+    relativeRisk: number;
+  } | null>(null);
 
   // Fetch cities filtered by NUTS region
   const { data: cities, isLoading: isLoadingCities } = useQuery<Array<{code: string, name: string | null}>>({
@@ -85,6 +90,13 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
       }
     }
     return closest;
+  };
+
+  // Helper function to generate nice temperature ticks
+  const generateTemperatureTicks = (data: Array<{ temperature: number; percentile: number; value: number }>) => {
+    // Use temperatures at key percentiles (1st, 25th, 50th, 75th, 99th)
+    const keyPercentiles = [1, 25, 50, 75, 99];
+    return keyPercentiles.map(p => findClosestPercentile(data, p).temperature);
   };
 
   if (isLoadingCities) {
@@ -231,34 +243,37 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
           // Multi-line chart comparing all age groups
           (() => {
             const firstData = allAgeGroupQueries.data[0].data;
-            const percentileTicks = usePercentiles 
-              ? [1, 25, 50, 75, 99].map(p => findClosestPercentile(firstData, p).temperature)
-              : undefined;
+            const targetPercentiles = [1, 25, 50, 75, 99];
+            const percentilePoints = targetPercentiles.map(p => findClosestPercentile(firstData, p));
+            
+            // For percentile mode: use temperatures at key percentiles
+            // For temperature mode: also use temperatures at key percentiles (nice round-ish values)
+            const tickTemperatures = percentilePoints.map(p => p.temperature);
 
             return (
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart
-                  margin={{ top: 5, right: 10, left: 50, bottom: 70 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="temperature"
-                    type="number"
-                    domain={['dataMin', 'dataMax']}
-                    label={{ 
-                      value: usePercentiles ? 'Temperature Percentile' : 'Temperature (°C)', 
-                      position: 'insideBottom', 
-                      offset: -35,
-                      style: { fontSize: '12px' }
-                    }}
-                    tickFormatter={usePercentiles ? (temp: number) => {
-                      const point = firstData.find(p => Math.abs(p.temperature - temp) < 0.5);
-                      return point ? point.percentile.toFixed(0) : '';
-                    } : (temp: number) => temp.toFixed(1)}
-                    ticks={percentileTicks}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis
+              <div style={{ overflow: 'visible' }}>
+                <ResponsiveContainer width="100%" height={420}>
+                  <LineChart data={bsplineData.data}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="temperature"
+                      type="number"
+                      domain={['dataMin', 'dataMax']}
+                      label={{ 
+                        value: usePercentiles ? 'Temperature Percentile' : 'Temperature (°C)', 
+                        position: 'insideBottom', 
+                        offset: -10,
+                        style: { fontSize: '12px' }
+                      }}
+                      tickFormatter={usePercentiles ? (temp: number) => {
+                        // Find the exact percentile point for this tick
+                        const point = percentilePoints.find(p => Math.abs(p.temperature - temp) < 0.01);
+                        return point ? point.percentile.toFixed(0) : '';
+                      } : (temp: number) => temp.toFixed(1)}
+                      ticks={tickTemperatures}
+                      tick={{ fontSize: 11 }}
+                    />
+                    <YAxis
                     domain={[0.5, 2]}
                     allowDataOverflow={true}
                     label={{ 
@@ -308,10 +323,10 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
                     label={{ value: 'RR = 1', position: 'right', fill: '#6b7280', fontSize: 11 }}
                   />
                   
-                  {/* Add reference lines for specific percentiles */}
-                  {usePercentiles && percentileTicks && (
+                  {/* Add reference lines for key percentile temperatures */}
+                  {usePercentiles && (
                     <>
-                      {percentileTicks.map((temp, idx) => (
+                      {tickTemperatures.map((temp: number, idx: number) => (
                         <ReferenceLine
                           key={[1, 25, 50, 75, 99][idx]}
                           x={temp}
@@ -323,14 +338,18 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
                   )}
                 </LineChart>
               </ResponsiveContainer>
+              </div>
             );
           })()
         ) : !showAllAgeGroups && bsplineData ? (
           // Single age group chart
           (() => {
-            const percentileTicks = usePercentiles 
-              ? [1, 25, 50, 75, 99].map(p => findClosestPercentile(bsplineData.data, p).temperature)
-              : undefined;
+            const targetPercentiles = [1, 25, 50, 75, 99];
+            const percentilePoints = targetPercentiles.map(p => findClosestPercentile(bsplineData.data, p));
+            
+            // For percentile mode: use temperatures at key percentiles
+            // For temperature mode: also use temperatures at key percentiles (nice round-ish values)
+            const tickTemperatures = percentilePoints.map(p => p.temperature);
 
             // Get the color for the selected age group
             const ageGroupColor = AGE_GROUP_COLORS[selectedAgeGroup as keyof typeof AGE_GROUP_COLORS] || '#2563eb';
@@ -339,7 +358,6 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
               <ResponsiveContainer width="100%" height={400}>
                 <LineChart
                   data={bsplineData.data}
-                  margin={{ top: 5, right: 10, left: 50, bottom: 70 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
@@ -348,15 +366,16 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
                     domain={['dataMin', 'dataMax']}
                     label={{ 
                       value: usePercentiles ? 'Temperature Percentile' : 'Temperature (°C)', 
-                      position: 'insideBottom', 
-                      offset: -35,
-                      style: { fontSize: '12px' }
+                      position: 'insideBottom',
+                      offset: 0,
+                      style: { fontSize: '12px', textAnchor: 'middle' }
                     }}
                     tickFormatter={usePercentiles ? (temp: number) => {
-                      const point = bsplineData.data.find(p => Math.abs(p.temperature - temp) < 0.5);
+                      // Find the exact percentile point for this tick
+                      const point = percentilePoints.find(p => Math.abs(p.temperature - temp) < 0.01);
                       return point ? point.percentile.toFixed(0) : '';
                     } : (temp: number) => temp.toFixed(1)}
-                    ticks={percentileTicks}
+                    ticks={tickTemperatures}
                     tick={{ fontSize: 11 }}
                   />
                   <YAxis
@@ -379,6 +398,48 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
                         return point ? `${point.percentile.toFixed(1)}th %ile (${label.toFixed(2)}°C)` : `${label.toFixed(2)}°C`;
                       }
                       return `${label.toFixed(2)}°C`;
+                    }}
+                    cursor={{ stroke: '#9ca3af', strokeWidth: 1, strokeDasharray: '5 5' }}
+                    content={(props: any) => {
+                      if (props.active && props.payload && props.payload.length > 0) {
+                        const data = props.payload[0].payload;
+                        // Use a ref to update state without causing re-render during render
+                        const newPoint = {
+                          temperature: data.temperature,
+                          percentile: data.percentile,
+                          relativeRisk: data.value,
+                        };
+                        
+                        // Schedule state update after render
+                        setTimeout(() => {
+                          setHoveredPoint((prev) => {
+                            if (!prev || 
+                                prev.temperature !== newPoint.temperature || 
+                                prev.relativeRisk !== newPoint.relativeRisk) {
+                              return newPoint;
+                            }
+                            return prev;
+                          });
+                        }, 0);
+                        
+                        // Render custom tooltip
+                        return (
+                          <div className="bg-white border border-gray-300 rounded shadow-lg p-2" style={{ fontSize: '11px' }}>
+                            <p className="font-semibold">
+                              {usePercentiles 
+                                ? `${data.percentile.toFixed(1)}th %ile (${data.temperature.toFixed(2)}°C)`
+                                : `${data.temperature.toFixed(2)}°C`
+                              }
+                            </p>
+                            <p className="text-blue-600">RR: {data.value.toFixed(3)}</p>
+                          </div>
+                        );
+                      }
+                      // Schedule clearing hovered point when not hovering
+                      setTimeout(() => {
+                        setHoveredPoint(null);
+                      }, 0);
+                      return null;
                     }}
                   />
                   
@@ -413,10 +474,10 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
                     }}
                   />
                   
-                  {/* Add reference lines for specific percentiles */}
-                  {usePercentiles && percentileTicks && (
+                  {/* Add reference lines for key percentile temperatures */}
+                  {usePercentiles && (
                     <>
-                      {percentileTicks.map((temp, idx) => (
+                      {tickTemperatures.map((temp: number, idx: number) => (
                         <ReferenceLine
                           key={[1, 25, 50, 75, 99][idx]}
                           x={temp}
@@ -436,6 +497,29 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
           </div>
         )}
       </div>
+
+      {/* Dynamic descriptive paragraph for single age group */}
+      {!showAllAgeGroups && bsplineData && hoveredPoint && (
+        <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+          <p className="text-sm text-gray-800 leading-relaxed">
+            At <span className="font-semibold text-blue-700">{hoveredPoint.temperature.toFixed(1)}°C</span>
+            {' '}(<span className="font-medium">{hoveredPoint.percentile.toFixed(1)}th percentile</span>), 
+            a person aged <span className="font-semibold text-indigo-700">{selectedAgeGroup} years</span> is at{' '}
+            <span className="font-bold text-lg text-red-600">{hoveredPoint.relativeRisk.toFixed(2)}×</span> the risk 
+            of dying due to temperature-related causes compared to the optimal temperature 
+            (<span className="font-medium text-green-700">{bsplineData.mmt.temperature.toFixed(1)}°C</span>, MMT).
+          </p>
+        </div>
+      )}
+
+      {/* Info paragraph when not hovering */}
+      {!showAllAgeGroups && bsplineData && !hoveredPoint && (
+        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-sm text-gray-600 italic">
+            Hover over the curve to see the relative risk at different temperatures
+          </p>
+        </div>
+      )}
     </div>
   );
 }

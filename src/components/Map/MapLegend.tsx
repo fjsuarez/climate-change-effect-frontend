@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { METRIC_CONFIG, getMetricLabel, formatMetricValue } from '@/lib/metricConfig';
 
 interface MapLegendProps {
   minValue: number;
@@ -8,37 +9,15 @@ interface MapLegendProps {
   metric: string;
 }
 
-// Metric configuration with units and formatting
-const METRIC_CONFIG: Record<string, { unit: string; label: string; decimals: number }> = {
-  temp_era5_q05: { unit: '°C', label: 'Temperature (ERA5 Q05)', decimals: 1 },
-  temp_era5_q50: { unit: '°C', label: 'Temperature (ERA5 Q50)', decimals: 1 },
-  temp_era5_q95: { unit: '°C', label: 'Temperature (ERA5 Q95)', decimals: 1 },
-  temp_rcp45: { unit: '°C', label: 'Temperature (RCP 4.5)', decimals: 1 },
-  temp_rcp85: { unit: '°C', label: 'Temperature (RCP 8.5)', decimals: 1 },
-  mortality_rate: { unit: ' per 100k', label: 'Mortality Rate', decimals: 1 },
-  population_density: { unit: ' per km²', label: 'Population Density', decimals: 0 },
-  population: { unit: '', label: 'Population', decimals: 0 },
-  pm10: { unit: ' µg/m³', label: 'PM10', decimals: 1 },
-  O3: { unit: ' µg/m³', label: 'Ozone (O₃)', decimals: 1 },
-  NOx: { unit: ' µg/m³', label: 'NOx', decimals: 1 },
-};
-
 export function MapLegend({ minValue, maxValue, metric }: MapLegendProps) {
   // Get metric configuration
-  const config = METRIC_CONFIG[metric] || { 
-    unit: '', 
-    label: metric.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
-    decimals: 2 
-  };
-
-  const formatValue = (value: number) => {
-    return `${value.toFixed(config.decimals)}${config.unit}`;
-  };
+  const label = getMetricLabel(metric);
+  const formatValue = (value: number) => formatMetricValue(metric, value);
 
   return (
-    <div className="absolute bottom-6 left-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-4 min-w-[200px]">
+    <div className="absolute bottom-20 md:bottom-24 left-6 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-4 min-w-[200px]">
       <div className="text-sm font-semibold mb-3 text-gray-700">
-        {config.label}
+        {label}
       </div>
       
       {/* Gradient bar */}

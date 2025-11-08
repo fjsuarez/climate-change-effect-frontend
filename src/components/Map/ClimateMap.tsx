@@ -79,18 +79,38 @@ export default function ClimateMap() {
         40, '#ff0000',
       ] as any,
       'fill-opacity': [
-        'case',
-        ['boolean', ['feature-state', 'hover'], false],
-        0.8,
-        0.6,
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        // At zoom 4.5: NUTS 0 fully visible, NUTS 3 invisible
+        4.5, [
+          'case',
+          ['boolean', ['feature-state', 'hover'], false],
+          ['case', ['==', ['length', ['get', 'NUTS_ID']], 2], 0.8, 0],
+          ['case', ['==', ['length', ['get', 'NUTS_ID']], 2], 0.6, 0],
+        ],
+        // At zoom 5: Both visible at same opacity
+        5, [
+          'case',
+          ['boolean', ['feature-state', 'hover'], false],
+          0.8,
+          0.6,
+        ],
+        // At zoom 5.5: NUTS 3 fully visible, NUTS 0 invisible
+        5.5, [
+          'case',
+          ['boolean', ['feature-state', 'hover'], false],
+          ['case', ['==', ['length', ['get', 'NUTS_ID']], 5], 0.8, 0],
+          ['case', ['==', ['length', ['get', 'NUTS_ID']], 5], 0.6, 0],
+        ],
       ] as any,
     },
     filter: [
       'any',
-      // Show NUTS 0 (countries - 2 chars) at zoom < 5
-      ['all', ['<', ['zoom'], 5], ['==', ['length', ['get', 'NUTS_ID']], 2]],
-      // Show NUTS 3 (regions - 5 chars) at zoom >= 5
-      ['all', ['>=', ['zoom'], 5], ['==', ['length', ['get', 'NUTS_ID']], 5]],
+      // Show NUTS 0 (countries - 2 chars) at zoom < 5.5 (extended range to reduce artifacts)
+      ['all', ['<', ['zoom'], 5.5], ['==', ['length', ['get', 'NUTS_ID']], 2]],
+      // Show NUTS 3 (regions - 5 chars) at zoom >= 4.5 (start earlier for smoother transition)
+      ['all', ['>=', ['zoom'], 4.5], ['==', ['length', ['get', 'NUTS_ID']], 5]],
     ] as any,
   };
 
@@ -108,10 +128,10 @@ export default function ClimateMap() {
     },
     filter: [
       'any',
-      // Show NUTS 0 (countries - 2 chars) at zoom < 5
-      ['all', ['<', ['zoom'], 5], ['==', ['length', ['get', 'NUTS_ID']], 2]],
-      // Show NUTS 3 (regions - 5 chars) at zoom >= 5
-      ['all', ['>=', ['zoom'], 5], ['==', ['length', ['get', 'NUTS_ID']], 5]],
+      // Show NUTS 0 (countries - 2 chars) at zoom < 5.5 (extended range to reduce artifacts)
+      ['all', ['<', ['zoom'], 5.5], ['==', ['length', ['get', 'NUTS_ID']], 2]],
+      // Show NUTS 3 (regions - 5 chars) at zoom >= 4.5 (start earlier for smoother transition)
+      ['all', ['>=', ['zoom'], 4.5], ['==', ['length', ['get', 'NUTS_ID']], 5]],
     ] as any,
   };
 

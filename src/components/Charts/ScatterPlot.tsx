@@ -11,6 +11,7 @@ import {
   Label,
 } from 'recharts';
 import type { TimeSeriesResponse } from '@/lib/types';
+import { getMetricLabel } from '@/lib/metricConfig';
 
 interface ScatterPlotProps {
   data: TimeSeriesResponse;
@@ -26,6 +27,9 @@ export default function ScatterPlot({ data, height = 300 }: ScatterPlotProps) {
     );
   }
 
+  const metric1Label = getMetricLabel(data.metric1);
+  const metric2Label = getMetricLabel(data.metric2);
+
   // Transform data for scatter plot
   const scatterData = data.data
     .filter((point) => point.metric2_value !== undefined)
@@ -38,12 +42,30 @@ export default function ScatterPlot({ data, height = 300 }: ScatterPlotProps) {
     <ResponsiveContainer width="100%" height={height}>
       <ScatterChart>
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis type="number" dataKey="x" name={data.metric1}>
-          <Label value={data.metric1} position="insideBottom" offset={-5} />
-        </XAxis>
-        <YAxis type="number" dataKey="y" name={data.metric2}>
-          <Label value={data.metric2} angle={-90} position="insideLeft" />
-        </YAxis>
+        <XAxis 
+          type="number" 
+          dataKey="x" 
+          name={metric1Label}
+          tick={{ fontSize: 12 }}
+          label={{ 
+            value: metric1Label, 
+            position: 'insideBottom', 
+            offset: -5,
+            style: { fontSize: 11, textAnchor: 'middle' }
+          }}
+        />
+        <YAxis 
+          type="number" 
+          dataKey="y" 
+          name={metric2Label}
+          tick={{ fontSize: 12 }}
+          label={{ 
+            value: metric2Label, 
+            angle: -90, 
+            position: 'insideLeft',
+            style: { fontSize: 11, textAnchor: 'middle' }
+          }}
+        />
         <Tooltip cursor={{ strokeDasharray: '3 3' }} />
         <Scatter data={scatterData} fill="#8884d8" />
       </ScatterChart>

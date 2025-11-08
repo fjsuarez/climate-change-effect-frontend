@@ -1,7 +1,7 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
-import { useTimeSeries } from '@/hooks/useClimateData';
+import { useTimeSeries, useRegions } from '@/hooks/useClimateData';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,7 +9,8 @@ import TimeSeriesChart from '@/components/Charts/TimeSeriesChart';
 import ScatterPlot from '@/components/Charts/ScatterPlot';
 import { RelativeRiskTab } from './RelativeRiskTab';
 import { CLIMATE_METRICS, ClimateMetric } from '@/lib/types';
-import { useState } from 'react';
+import { getMetricLabel, formatMetricValue } from '@/lib/metricConfig';
+import { useState, useMemo } from 'react';
 
 export default function RegionDetailModal() {
   const { selectedRegion, selectedMetric, resetSelection } = useAppStore();
@@ -22,6 +23,16 @@ export default function RegionDetailModal() {
     selectedMetric as ClimateMetric,
     secondMetric as ClimateMetric | undefined
   );
+
+  // Fetch regions to get the name
+  const { data: regionsData } = useRegions(0.01);
+  
+  // Find the region name
+  const regionName = useMemo(() => {
+    if (!regionsData || !selectedRegion) return null;
+    const region = regionsData.features.find(f => f.properties.NUTS_ID === selectedRegion);
+    return region?.properties.name || null;
+  }, [regionsData, selectedRegion]);
 
   if (!selectedRegion) return null;
 
@@ -50,13 +61,14 @@ export default function RegionDetailModal() {
         <div className="flex items-center justify-between p-4 border-b">
           <div>
             <h2 className="text-xl font-semibold">
-              {data?.nuts_id || selectedRegion}
+              {selectedRegion}
+              {regionName && <span className="text-gray-600 ml-2">• {regionName}</span>}
             </h2>
             <p className="text-sm text-gray-500">Climate Data Analysis</p>
           </div>
           <button
             onClick={handleClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-[#6DC201]/10 hover:text-[#6DC201] rounded-full transition-colors"
           >
             <X size={20} />
           </button>
@@ -72,11 +84,27 @@ export default function RegionDetailModal() {
 
           {error && (
             <div className="flex items-center justify-center h-64">
-              <p className="text-red-500">Error loading data</p>
+              <div className="text-center">
+                <p className="text-gray-600 font-medium">No data available</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  This region does not have data for the selected metric
+                </p>
+              </div>
             </div>
           )}
 
-          {data && (
+          {!isLoading && !error && data && data.data.length === 0 && (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-center">
+                <p className="text-gray-600 font-medium">No data available</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  This region does not have data for the selected metric
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!isLoading && !error && data && data.data.length > 0 && (
             <Tabs defaultValue="timeseries" className="w-full">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="timeseries">Time Series</TabsTrigger>
@@ -100,7 +128,7 @@ export default function RegionDetailModal() {
                     {CLIMATE_METRICS.filter((m) => m !== selectedMetric).map(
                       (metric) => (
                         <option key={metric} value={metric}>
-                          {metric}
+                          {getMetricLabel(metric)}
                         </option>
                       )
                     )}
@@ -141,12 +169,12 @@ export default function RegionDetailModal() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Primary Metric</p>
-                    <p className="font-semibold">{data.metric1}</p>
+                    <p className="font-semibold">{getMetricLabel(data.metric1)}</p>
                   </div>
                   {data.metric2 && (
                     <div>
                       <p className="text-sm text-gray-600">Secondary Metric</p>
-                      <p className="font-semibold">{data.metric2}</p>
+                      <p className="font-semibold">{getMetricLabel(data.metric2)}</p>
                     </div>
                   )}
                   <div>
@@ -155,26 +183,77 @@ export default function RegionDetailModal() {
                   </div>
                   {data.data.length > 0 && (
                     <>
-                      <div>
-                        <p className="text-sm text-gray-600">Average {data.metric1}</p>
-                        <p className="font-semibold">
-                          {(
-                            data.data.reduce((sum, d) => sum + d.metric1_value, 0) /
-                            data.data.length
-                          ).toFixed(2)}
+                      {/* Metric 1 Statistics */}
+                      <div className="pt-2 border-t border-gray-300">
+                        <p className="text-sm font-semibold text-gray-700 mb-2">
+                          {getMetricLabel(data.metric1)} Statistics
                         </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <p className="text-xs text-gray-600">Average</p>
+                            <p className="font-semibold text-sm">
+                              {formatMetricValue(
+                                data.metric1,
+                                data.data.reduce((sum, d) => sum + d.metric1_value, 0) / data.data.length
+                              )}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">Min</p>
+                            <p className="font-semibold text-sm">
+                              {formatMetricValue(
+                                data.metric1,
+                                Math.min(...data.data.map(d => d.metric1_value))
+                              )}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-600">Max</p>
+                            <p className="font-semibold text-sm">
+                              {formatMetricValue(
+                                data.metric1,
+                                Math.max(...data.data.map(d => d.metric1_value))
+                              )}
+                            </p>
+                          </div>
+                        </div>
                       </div>
+                      
+                      {/* Metric 2 Statistics */}
                       {data.metric2 && data.data[0].metric2_value !== undefined && (
-                        <div>
-                          <p className="text-sm text-gray-600">Average {data.metric2}</p>
-                          <p className="font-semibold">
-                            {(
-                              data.data.reduce(
-                                (sum, d) => sum + (d.metric2_value || 0),
-                                0
-                              ) / data.data.length
-                            ).toFixed(2)}
+                        <div className="pt-2 border-t border-gray-300">
+                          <p className="text-sm font-semibold text-gray-700 mb-2">
+                            {getMetricLabel(data.metric2)} Statistics
                           </p>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <p className="text-xs text-gray-600">Average</p>
+                              <p className="font-semibold text-sm">
+                                {formatMetricValue(
+                                  data.metric2,
+                                  data.data.reduce((sum, d) => sum + (d.metric2_value || 0), 0) / data.data.length
+                                )}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-600">Min</p>
+                              <p className="font-semibold text-sm">
+                                {formatMetricValue(
+                                  data.metric2,
+                                  Math.min(...data.data.map(d => d.metric2_value || 0))
+                                )}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-600">Max</p>
+                              <p className="font-semibold text-sm">
+                                {formatMetricValue(
+                                  data.metric2,
+                                  Math.max(...data.data.map(d => d.metric2_value || 0))
+                                )}
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </>

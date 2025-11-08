@@ -2,6 +2,7 @@
 
 import { useAppStore } from '@/lib/store';
 import { CLIMATE_METRICS, DATE_RANGE, type ClimateMetric } from '@/lib/types';
+import { getMetricLabel } from '@/lib/metricConfig';
 import { Play, Pause } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { useMetricSnapshot } from '@/hooks/useClimateData';
@@ -91,7 +92,7 @@ export default function MapControls() {
         >
           {CLIMATE_METRICS.map((metric) => (
             <option key={metric} value={metric}>
-              {metric}
+              {getMetricLabel(metric)}
             </option>
           ))}
         </select>
@@ -139,7 +140,7 @@ export default function MapControls() {
       <div>
         <button
           onClick={() => setIsPlaying(!isPlaying)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-[#6DC201] text-white rounded-md hover:bg-[#5ba801] transition-colors"
         >
           {isPlaying ? (
             <>
