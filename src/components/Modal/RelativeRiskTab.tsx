@@ -102,13 +102,6 @@ export function RelativeRiskTab({ nutsId }: RelativeRiskTabProps) {
     return closest;
   };
 
-  // Helper function to generate nice temperature ticks
-  const generateTemperatureTicks = (data: Array<{ temperature: number; percentile: number; value: number }>) => {
-    // Use temperatures at key percentiles (1st, 25th, 50th, 75th, 99th)
-    const keyPercentiles = [1, 25, 50, 75, 99];
-    return keyPercentiles.map(p => findClosestPercentile(data, p).temperature);
-  };
-
   // Memoized histogram to prevent re-renders when only hoveredPoint changes
   // Note: We actually need this to re-render for highlighting, but it won't affect the LineChart
   const histogramChart = useMemo(() => {

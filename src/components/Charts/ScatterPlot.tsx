@@ -8,7 +8,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Label,
 } from 'recharts';
 import type { TimeSeriesResponse } from '@/lib/types';
 import { getMetricLabel } from '@/lib/metricConfig';

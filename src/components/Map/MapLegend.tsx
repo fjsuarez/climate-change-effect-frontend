@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { METRIC_CONFIG, getMetricLabel, formatMetricValue } from '@/lib/metricConfig';
+import { getMetricLabel, formatMetricValue } from '@/lib/metricConfig';
 
 interface MapLegendProps {
   minValue: number;
