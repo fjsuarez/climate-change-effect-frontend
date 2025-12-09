@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import TimeSeriesChart from '@/components/Charts/TimeSeriesChart';
 import ScatterPlot from '@/components/Charts/ScatterPlot';
 import { RelativeRiskTab } from './RelativeRiskTab';
+import { LifeTablesTab } from './LifeTablesTab';
 import { CLIMATE_METRICS, ClimateMetric } from '@/lib/types';
 import { getMetricLabel, formatMetricValue } from '@/lib/metricConfig';
 import { useState, useMemo } from 'react';
@@ -106,10 +107,11 @@ export default function RegionDetailModal() {
 
           {!isLoading && !error && data && data.data.length > 0 && (
             <Tabs defaultValue="timeseries" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="timeseries">Time Series</TabsTrigger>
                 <TabsTrigger value="correlation">Correlation</TabsTrigger>
                 <TabsTrigger value="relativerisk">Relative Risk</TabsTrigger>
+                <TabsTrigger value="lifetables">Life Tables</TabsTrigger>
                 <TabsTrigger value="summary">Summary</TabsTrigger>
               </TabsList>
 
@@ -158,6 +160,11 @@ export default function RegionDetailModal() {
               {/* Relative Risk Tab */}
               <TabsContent value="relativerisk" className="space-y-4">
                 <RelativeRiskTab nutsId={selectedRegion} />
+              </TabsContent>
+
+              {/* Life Tables Tab */}
+              <TabsContent value="lifetables" className="space-y-4">
+                <LifeTablesTab nutsId={selectedRegion} />
               </TabsContent>
 
               {/* Summary Tab */}

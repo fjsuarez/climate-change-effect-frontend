@@ -144,6 +144,15 @@ export default function ClimateMap() {
     }
   };
 
+  // Expose map instance to window for console debugging (screencast purposes)
+  const handleMapLoad = () => {
+    if (mapRef.current) {
+      // @ts-ignore - Expose for console access
+      window.myMap = mapRef.current.getMap();
+      console.log('🗺️  Map exposed as window.myMap - Use for screencast animations!');
+    }
+  };
+
   // Handle hover
   const handleMouseMove = (event: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
     const feature = event.features?.[0];
@@ -204,6 +213,7 @@ export default function ClimateMap() {
         onMove={(evt: { viewState: { zoom: number; longitude: number; latitude: number } }) => 
           setMapView(evt.viewState.zoom, [evt.viewState.longitude, evt.viewState.latitude])
         }
+        onLoad={handleMapLoad}
         attributionControl={false}
       >
         {geoJsonWithValues && (
