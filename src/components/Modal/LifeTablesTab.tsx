@@ -1,8 +1,34 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, ComposedChart 
 } from 'recharts';
-import { motion } from 'framer-motion';
+import { motion, useSpring, useMotionValue, useTransform, animate } from 'framer-motion';
+
+// Animated Counter Component
+const AnimatedCounter = ({ value, prefix = '', suffix = '', decimals = 0 }: { value: number, prefix?: string, suffix?: string, decimals?: number }) => {
+  const motionValue = useMotionValue(value);
+  const springValue = useSpring(motionValue, { damping: 30, stiffness: 100 });
+  const [displayValue, setDisplayValue] = useState(value);
+
+  useEffect(() => {
+    motionValue.set(value);
+  }, [value, motionValue]);
+
+  useEffect(() => {
+    const unsubscribe = springValue.on("change", (latest) => {
+      setDisplayValue(latest);
+    });
+    return unsubscribe;
+  }, [springValue]);
+
+  return (
+    <span>
+      {prefix}
+      {displayValue.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
+      {suffix}
+    </span>
+  );
+};
 
 interface LifeTableData {
   age: number;
@@ -90,12 +116,25 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedSSP, setSelectedSSP] = useState(SSP_OPTIONS[1].id);
   const [selectedAdaptation, setSelectedAdaptation] = useState(ADAPTATION_OPTIONS[0].id);
+  const [userAge, setUserAge] = useState<number | ''>('');
 
   const currentData = useMemo(() => {
     const ssp = SSP_OPTIONS.find(o => o.id === selectedSSP) || SSP_OPTIONS[1];
     const adaptation = ADAPTATION_OPTIONS.find(o => o.id === selectedAdaptation) || ADAPTATION_OPTIONS[0];
     return generateDummyData(ssp.multiplier, adaptation.value);
   }, [selectedSSP, selectedAdaptation]);
+
+  // Personal Impact Calculation
+  const personalImpact = useMemo(() => {
+    if (userAge === '' || userAge < 0 || userAge > 100) return null;
+    const row = currentData.find(d => d.age === Number(userAge));
+    if (!row) return null;
+    return {
+      diff: row.baseline.e - row.adjusted.e, // Positive means lost years
+      baseline: row.baseline.e,
+      adjusted: row.adjusted.e
+    };
+  }, [userAge, currentData]);
 
   // Ensure shares sum to 100 (or handle it in UI)
   const handleAnnuityChange = (val: number) => {
@@ -110,9 +149,9 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
 
   const displayedData = useMemo(() => {
     if (isExpanded) return currentData;
-    // Show every 10th year when collapsed
-    return currentData.filter(d => d.age % 10 === 0);
-  }, [isExpanded, currentData]);
+    // Show every 10th year when collapsed, BUT always include userAge if set
+    return currentData.filter(d => d.age % 10 === 0 || (userAge !== '' && d.age === Number(userAge)));
+  }, [isExpanded, currentData, userAge]);
 
   // Helper for cell styling
   const getColorClass = (val1: number, val2: number, type: 'q' | 'l' | 'e') => {
@@ -324,25 +363,84 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
               <div className="flex justify-between items-center mb-1">
                 <span className="text-sm text-gray-600">Annuities Impact</span>
                 <span className={`font-medium ${financialImpact.annuity >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {financialImpact.annuity >= 0 ? '+' : ''}{Math.round(financialImpact.annuity).toLocaleString()} €
+                  {financialImpact.annuity >= 0 ? '+' : ''}
+                  <AnimatedCounter value={Math.round(financialImpact.annuity)} suffix=" €" />
                 </span>
               </div>
               <div className="flex justify-between items-center mb-1">
                 <span className="text-sm text-gray-600">Life Insurance Impact</span>
                 <span className={`font-medium ${financialImpact.lifeInsurance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {financialImpact.lifeInsurance >= 0 ? '+' : ''}{Math.round(financialImpact.lifeInsurance).toLocaleString()} €
+                  {financialImpact.lifeInsurance >= 0 ? '+' : ''}
+                  <AnimatedCounter value={Math.round(financialImpact.lifeInsurance)} suffix=" €" />
                 </span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-gray-200 font-bold">
                 <span>Total Impact</span>
                 <span className={`${financialImpact.total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {financialImpact.total >= 0 ? '+' : ''}{Math.round(financialImpact.total).toLocaleString()} €
+                  {financialImpact.total >= 0 ? '+' : ''}
+                  <AnimatedCounter value={Math.round(financialImpact.total)} suffix=" €" />
                 </span>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Personal Impact Card */}
+      <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex-1">
+          <h4 className="font-semibold text-blue-900 mb-1">Personalized Impact</h4>
+          <p className="text-sm text-blue-800">
+            Enter your age to see how climate change could affect life expectancy for your demographic.
+          </p>
+        </div>
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="flex items-center gap-2">
+            <label htmlFor="userAge" className="text-sm font-medium text-blue-900 whitespace-nowrap">Your Age:</label>
+            <input
+              id="userAge"
+              type="number"
+              min="0"
+              max="100"
+              placeholder="e.g. 35"
+              value={userAge}
+              onChange={(e) => {
+                const val = e.target.value;
+                setUserAge(val === '' ? '' : Math.min(100, Math.max(0, Number(val))));
+              }}
+              className="w-20 px-3 py-2 border border-blue-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-center"
+            />
+          </div>
+        </div>
+      </div>
+
+      {personalImpact && (
+        <motion.div 
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="bg-white border-l-4 border-red-500 p-4 rounded-r-lg shadow-sm"
+        >
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-red-100 rounded-full text-red-600">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M3.62 17.79a10 10 0 1 1 16.76 0"/></svg>
+            </div>
+            <div>
+              <h4 className="font-bold text-gray-900">Projected Impact at Age {userAge}</h4>
+              <p className="text-gray-700 mt-1">
+                Under the <strong>{SSP_OPTIONS.find(o => o.id === selectedSSP)?.label.split('(')[0]}</strong> scenario 
+                with <strong>{ADAPTATION_OPTIONS.find(o => o.id === selectedAdaptation)?.label}</strong>, 
+                life expectancy for a {userAge}-year-old is projected to decrease by:
+              </p>
+              <p className="text-3xl font-bold text-red-600 my-2">
+                <AnimatedCounter value={personalImpact.diff} decimals={2} suffix=" years" />
+              </p>
+              <p className="text-sm text-gray-500">
+                Dropping from <span className="font-medium">{personalImpact.baseline.toFixed(1)}</span> to <span className="font-medium">{personalImpact.adjusted.toFixed(1)}</span> years.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Survival Curve Visualization */}
       <motion.div 
@@ -430,8 +528,18 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {displayedData.map((row) => (
-                <tr key={row.age} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 whitespace-nowrap font-medium text-gray-900 border-r">{row.age}</td>
+                <tr 
+                  key={row.age} 
+                  className={`hover:bg-gray-50 transition-colors duration-300 ${userAge !== '' && row.age === Number(userAge) ? 'bg-yellow-50 ring-2 ring-yellow-400 relative z-10' : ''}`}
+                >
+                  <td className="px-4 py-2 whitespace-nowrap font-medium text-gray-900 border-r">
+                    {row.age}
+                    {userAge !== '' && row.age === Number(userAge) && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                        You
+                      </span>
+                    )}
+                  </td>
                   
                   {/* Baseline Data */}
                   <td className="px-4 py-2 whitespace-nowrap text-right text-gray-600 border-r">{row.baseline.q.toFixed(5)}</td>
