@@ -357,6 +357,7 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
                 tickFormatter={(value) => value.toLocaleString()} 
                 tick={{ fontSize: 12 }}
                 width={60}
+                domain={[0, 100000]}
               />
               <Tooltip 
                 formatter={(value: number, name: string) => [value.toLocaleString(), name === 'baseline.l' ? 'Baseline' : 'Adjusted']}
@@ -372,6 +373,7 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
                 strokeWidth={2} 
                 strokeDasharray="5 5" 
                 dot={false} 
+                isAnimationActive={false}
               />
               <Line 
                 type="monotone" 
@@ -380,6 +382,9 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
                 stroke="#ef4444" 
                 strokeWidth={2} 
                 dot={false} 
+                isAnimationActive={true}
+                animationDuration={1000}
+                key={`adjusted-line-${selectedSSP}-${selectedAdaptation}`}
               />
             </ComposedChart>
           </ResponsiveContainer>
