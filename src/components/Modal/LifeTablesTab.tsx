@@ -35,8 +35,8 @@ const generateDummyData = (sspMultiplier: number = 1, adaptation: number = 0): L
     // Adjusted q (temperature effect)
     // Higher SSP multiplier -> higher mortality increase
     // Adaptation reduces the impact (0% -> full impact, 90% -> 10% impact)
-    // Base impact factor: 0.02 (2% increase on average)
-    const impact = 0.02 * sspMultiplier * (1 - adaptation);
+    // Base impact factor: 0.15 (15% increase on average - exaggerated for demo)
+    const impact = 0.15 * sspMultiplier * (1 - adaptation);
     // Add some age variation (older people more affected)
     const ageFactor = 1 + (age / 100);
     
@@ -46,7 +46,7 @@ const generateDummyData = (sspMultiplier: number = 1, adaptation: number = 0): L
     // This is a very rough approximation for dummy data
     const e_base = Math.max(0, 85 - age * 0.8); 
     // Adjusted life expectancy drops with higher multiplier, mitigated by adaptation
-    const e_adj = Math.max(0, e_base - (0.5 * sspMultiplier * (1 - adaptation) * (1 - age/110)));
+    const e_adj = Math.max(0, e_base - (5.0 * sspMultiplier * (1 - adaptation) * (1 - age/110)));
 
     data.push({
       age,
