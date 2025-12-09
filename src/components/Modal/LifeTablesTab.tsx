@@ -15,24 +15,33 @@ interface LifeTableData {
 }
 
 // Dummy data generator for 2050
-const generateDummyData = (): LifeTableData[] => {
+const generateDummyData = (sspMultiplier: number = 1): LifeTableData[] => {
   const data: LifeTableData[] = [];
   let l_base = 100000;
   let l_adj = 100000;
+  
+  // Seed random for consistency across renders if needed, but here we just use Math.random
+  // In a real app, this data comes from API
   
   for (let age = 0; age <= 100; age++) {
     // Simplified mortality model
     // Base q increases with age
     const q_base = Math.min(1, 0.0005 + Math.exp((age - 90) * 0.1) * 0.15);
     
-    // Adjusted q (temperature effect) - slightly higher for dummy purposes
-    // In reality this would come from the backend based on risk curves
-    const q_adj = Math.min(1, q_base * (1 + (Math.random() * 0.05 - 0.01))); 
+    // Adjusted q (temperature effect)
+    // Higher SSP multiplier -> higher mortality increase
+    // Base impact factor: 0.02 (2% increase on average)
+    const impact = 0.02 * sspMultiplier;
+    // Add some age variation (older people more affected)
+    const ageFactor = 1 + (age / 100);
+    
+    const q_adj = Math.min(1, q_base * (1 + impact * ageFactor)); 
 
     // Calculate life expectancy (simplified, just sum of remaining years probability)
     // This is a very rough approximation for dummy data
     const e_base = Math.max(0, 85 - age * 0.8); 
-    const e_adj = Math.max(0, 84.5 - age * 0.8);
+    // Adjusted life expectancy drops with higher multiplier
+    const e_adj = Math.max(0, e_base - (0.5 * sspMultiplier * (1 - age/110)));
 
     data.push({
       age,
@@ -54,13 +63,24 @@ const generateDummyData = (): LifeTableData[] => {
   return data;
 };
 
-const DUMMY_DATA = generateDummyData();
+const SSP_OPTIONS = [
+  { id: 'ssp126', label: 'SSP1-2.6 (Low Emissions)', multiplier: 0.5 },
+  { id: 'ssp245', label: 'SSP2-4.5 (Intermediate)', multiplier: 1.0 },
+  { id: 'ssp370', label: 'SSP3-7.0 (High Emissions)', multiplier: 1.5 },
+  { id: 'ssp585', label: 'SSP5-8.5 (Very High Emissions)', multiplier: 2.0 },
+];
 
 export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
   const [annuityShare, setAnnuityShare] = useState<number>(50);
   const [lifeInsuranceShare, setLifeInsuranceShare] = useState<number>(50);
   const [portfolioSize, setPortfolioSize] = useState<number>(10000000); // 10M default
   const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedSSP, setSelectedSSP] = useState(SSP_OPTIONS[1].id);
+
+  const currentData = useMemo(() => {
+    const ssp = SSP_OPTIONS.find(o => o.id === selectedSSP) || SSP_OPTIONS[1];
+    return generateDummyData(ssp.multiplier);
+  }, [selectedSSP]);
 
   // Ensure shares sum to 100 (or handle it in UI)
   const handleAnnuityChange = (val: number) => {
@@ -74,10 +94,10 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
   };
 
   const displayedData = useMemo(() => {
-    if (isExpanded) return DUMMY_DATA;
+    if (isExpanded) return currentData;
     // Show every 10th year when collapsed
-    return DUMMY_DATA.filter(d => d.age % 10 === 0);
-  }, [isExpanded]);
+    return currentData.filter(d => d.age % 10 === 0);
+  }, [isExpanded, currentData]);
 
   // Helper for cell styling
   const getColorClass = (val1: number, val2: number, type: 'q' | 'l' | 'e') => {
@@ -111,8 +131,8 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
   
   const financialImpact = useMemo(() => {
     // Aggregate difference in life expectancy at birth (age 0)
-    const e0_base = DUMMY_DATA[0].baseline.e;
-    const e0_adj = DUMMY_DATA[0].adjusted.e;
+    const e0_base = currentData[0].baseline.e;
+    const e0_adj = currentData[0].adjusted.e;
     const diff_percent = (e0_adj - e0_base) / e0_base;
 
     // Impact on Annuities: 
@@ -131,10 +151,31 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
       total: annuityImpact + lifeInsuranceImpact,
       e0_diff: e0_adj - e0_base
     };
-  }, [annuityShare, lifeInsuranceShare, portfolioSize]);
+  }, [annuityShare, lifeInsuranceShare, portfolioSize, currentData]);
 
   return (
     <div className="space-y-6">
+      {/* SSP Selection */}
+      <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">Climate Scenario</h3>
+          <p className="text-sm text-gray-500">Select a Shared Socioeconomic Pathway (SSP)</p>
+        </div>
+        <div className="w-64">
+          <select
+            value={selectedSSP}
+            onChange={(e) => setSelectedSSP(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+          >
+            {SSP_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* Financial Impact Calculator */}
       <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
         <h3 className="text-lg font-semibold mb-4">Financial Impact Calculator</h3>
