@@ -1,4 +1,8 @@
 import React, { useState, useMemo } from 'react';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, ComposedChart 
+} from 'recharts';
+import { motion } from 'framer-motion';
 
 interface LifeTableData {
   age: number;
@@ -329,6 +333,58 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
           </div>
         </div>
       </div>
+
+      {/* Survival Curve Visualization */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
+      >
+        <h3 className="text-lg font-semibold mb-2">Survival Analysis</h3>
+        <p className="text-sm text-gray-500 mb-4">Projected number of survivors (l_x) out of 100,000 births</p>
+        
+        <div className="h-[300px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={currentData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis 
+                dataKey="age" 
+                label={{ value: 'Age', position: 'insideBottomRight', offset: -5 }} 
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis 
+                tickFormatter={(value) => value.toLocaleString()} 
+                tick={{ fontSize: 12 }}
+                width={60}
+              />
+              <Tooltip 
+                formatter={(value: number, name: string) => [value.toLocaleString(), name === 'baseline.l' ? 'Baseline' : 'Adjusted']}
+                labelFormatter={(label) => `Age: ${label}`}
+                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+              />
+              <Legend />
+              <Line 
+                type="monotone" 
+                dataKey="baseline.l" 
+                name="Baseline" 
+                stroke="#3b82f6" 
+                strokeWidth={2} 
+                strokeDasharray="5 5" 
+                dot={false} 
+              />
+              <Line 
+                type="monotone" 
+                dataKey="adjusted.l" 
+                name="Temperature Adjusted" 
+                stroke="#ef4444" 
+                strokeWidth={2} 
+                dot={false} 
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </motion.div>
 
       {/* Period Life Table */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
