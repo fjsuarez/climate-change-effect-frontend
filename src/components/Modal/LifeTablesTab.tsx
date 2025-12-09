@@ -60,6 +60,7 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
   const [annuityShare, setAnnuityShare] = useState<number>(50);
   const [lifeInsuranceShare, setLifeInsuranceShare] = useState<number>(50);
   const [portfolioSize, setPortfolioSize] = useState<number>(10000000); // 10M default
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Ensure shares sum to 100 (or handle it in UI)
   const handleAnnuityChange = (val: number) => {
@@ -70,6 +71,37 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
   const handleLifeInsuranceChange = (val: number) => {
     setLifeInsuranceShare(val);
     setAnnuityShare(100 - val);
+  };
+
+  const displayedData = useMemo(() => {
+    if (isExpanded) return DUMMY_DATA;
+    // Show every 10th year when collapsed
+    return DUMMY_DATA.filter(d => d.age % 10 === 0);
+  }, [isExpanded]);
+
+  // Helper for cell styling
+  const getColorClass = (val1: number, val2: number, type: 'q' | 'l' | 'e') => {
+    // val1 = adjusted, val2 = baseline
+    
+    // Fix precision issues for comparison to match display
+    let v1 = val1;
+    let v2 = val2;
+    
+    if (type === 'q') {
+      v1 = Number(val1.toFixed(5));
+      v2 = Number(val2.toFixed(5));
+    } else if (type === 'e') {
+      v1 = Number(val1.toFixed(2));
+      v2 = Number(val2.toFixed(2));
+    }
+    
+    if (v1 === v2) return '';
+    
+    // For q: higher is bad (red)
+    // For l, e: lower is bad (red)
+    const isWorse = type === 'q' ? v1 > v2 : v1 < v2;
+    
+    return isWorse ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
   };
 
   // Calculate financial impact
@@ -211,7 +243,7 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {DUMMY_DATA.map((row) => (
+              {displayedData.map((row) => (
                 <tr key={row.age} className="hover:bg-gray-50">
                   <td className="px-4 py-2 whitespace-nowrap font-medium text-gray-900 border-r">{row.age}</td>
                   
@@ -221,13 +253,28 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
                   <td className="px-4 py-2 whitespace-nowrap text-right text-gray-600 border-r">{row.baseline.e.toFixed(2)}</td>
                   
                   {/* Adjusted Data */}
-                  <td className="px-4 py-2 whitespace-nowrap text-right text-gray-600 border-r">{row.adjusted.q.toFixed(5)}</td>
-                  <td className="px-4 py-2 whitespace-nowrap text-right text-gray-600 border-r">{row.adjusted.l.toLocaleString()}</td>
-                  <td className="px-4 py-2 whitespace-nowrap text-right text-gray-600">{row.adjusted.e.toFixed(2)}</td>
+                  <td className={`px-4 py-2 whitespace-nowrap text-right border-r ${getColorClass(row.adjusted.q, row.baseline.q, 'q')}`}>
+                    {row.adjusted.q.toFixed(5)}
+                  </td>
+                  <td className={`px-4 py-2 whitespace-nowrap text-right border-r ${getColorClass(row.adjusted.l, row.baseline.l, 'l')}`}>
+                    {row.adjusted.l.toLocaleString()}
+                  </td>
+                  <td className={`px-4 py-2 whitespace-nowrap text-right ${getColorClass(row.adjusted.e, row.baseline.e, 'e')}`}>
+                    {row.adjusted.e.toFixed(2)}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+        
+        <div className="p-3 border-t border-gray-200 bg-gray-50 text-center">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-sm font-medium text-blue-600 hover:text-blue-800 focus:outline-none"
+          >
+            {isExpanded ? 'Collapse Table' : 'Show Full Table (100 rows)'}
+          </button>
         </div>
       </div>
     </div>
