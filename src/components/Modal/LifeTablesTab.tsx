@@ -15,7 +15,7 @@ interface LifeTableData {
 }
 
 // Dummy data generator for 2050
-const generateDummyData = (sspMultiplier: number = 1): LifeTableData[] => {
+const generateDummyData = (sspMultiplier: number = 1, adaptation: number = 0): LifeTableData[] => {
   const data: LifeTableData[] = [];
   let l_base = 100000;
   let l_adj = 100000;
@@ -30,8 +30,9 @@ const generateDummyData = (sspMultiplier: number = 1): LifeTableData[] => {
     
     // Adjusted q (temperature effect)
     // Higher SSP multiplier -> higher mortality increase
+    // Adaptation reduces the impact (0% -> full impact, 90% -> 10% impact)
     // Base impact factor: 0.02 (2% increase on average)
-    const impact = 0.02 * sspMultiplier;
+    const impact = 0.02 * sspMultiplier * (1 - adaptation);
     // Add some age variation (older people more affected)
     const ageFactor = 1 + (age / 100);
     
@@ -40,8 +41,8 @@ const generateDummyData = (sspMultiplier: number = 1): LifeTableData[] => {
     // Calculate life expectancy (simplified, just sum of remaining years probability)
     // This is a very rough approximation for dummy data
     const e_base = Math.max(0, 85 - age * 0.8); 
-    // Adjusted life expectancy drops with higher multiplier
-    const e_adj = Math.max(0, e_base - (0.5 * sspMultiplier * (1 - age/110)));
+    // Adjusted life expectancy drops with higher multiplier, mitigated by adaptation
+    const e_adj = Math.max(0, e_base - (0.5 * sspMultiplier * (1 - adaptation) * (1 - age/110)));
 
     data.push({
       age,
@@ -67,7 +68,15 @@ const SSP_OPTIONS = [
   { id: 'ssp126', label: 'SSP1-2.6 (Low Emissions)', multiplier: 0.5 },
   { id: 'ssp245', label: 'SSP2-4.5 (Intermediate)', multiplier: 1.0 },
   { id: 'ssp370', label: 'SSP3-7.0 (High Emissions)', multiplier: 1.5 },
+  { id: 'ssp460', label: 'SSP4-6.0 (Inequality)', multiplier: 1.3 },
   { id: 'ssp585', label: 'SSP5-8.5 (Very High Emissions)', multiplier: 2.0 },
+];
+
+const ADAPTATION_OPTIONS = [
+  { id: 'adapt0', label: '0% (No Adaptation)', value: 0 },
+  { id: 'adapt10', label: '10% Adaptation', value: 0.1 },
+  { id: 'adapt50', label: '50% Adaptation', value: 0.5 },
+  { id: 'adapt90', label: '90% Adaptation', value: 0.9 },
 ];
 
 export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
@@ -76,11 +85,13 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
   const [portfolioSize, setPortfolioSize] = useState<number>(10000000); // 10M default
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedSSP, setSelectedSSP] = useState(SSP_OPTIONS[1].id);
+  const [selectedAdaptation, setSelectedAdaptation] = useState(ADAPTATION_OPTIONS[0].id);
 
   const currentData = useMemo(() => {
     const ssp = SSP_OPTIONS.find(o => o.id === selectedSSP) || SSP_OPTIONS[1];
-    return generateDummyData(ssp.multiplier);
-  }, [selectedSSP]);
+    const adaptation = ADAPTATION_OPTIONS.find(o => o.id === selectedAdaptation) || ADAPTATION_OPTIONS[0];
+    return generateDummyData(ssp.multiplier, adaptation.value);
+  }, [selectedSSP, selectedAdaptation]);
 
   // Ensure shares sum to 100 (or handle it in UI)
   const handleAnnuityChange = (val: number) => {
@@ -155,24 +166,46 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
 
   return (
     <div className="space-y-6">
-      {/* SSP Selection */}
-      <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold">Climate Scenario</h3>
-          <p className="text-sm text-gray-500">Select a Shared Socioeconomic Pathway (SSP)</p>
+      {/* Scenario Selection */}
+      <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">Climate Scenario</h3>
+            <p className="text-sm text-gray-500">Select a Shared Socioeconomic Pathway (SSP)</p>
+          </div>
+          <div className="w-64">
+            <select
+              value={selectedSSP}
+              onChange={(e) => setSelectedSSP(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+            >
+              {SSP_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div className="w-64">
-          <select
-            value={selectedSSP}
-            onChange={(e) => setSelectedSSP(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-          >
-            {SSP_OPTIONS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+
+        <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+          <div>
+            <h3 className="text-lg font-semibold">Adaptation Scenario</h3>
+            <p className="text-sm text-gray-500">Select level of adaptation (higher % = less impact)</p>
+          </div>
+          <div className="w-64">
+            <select
+              value={selectedAdaptation}
+              onChange={(e) => setSelectedAdaptation(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+            >
+              {ADAPTATION_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
