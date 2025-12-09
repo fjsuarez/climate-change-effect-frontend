@@ -135,6 +135,43 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
     return isWorse ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
   };
 
+  const handleExportCSV = () => {
+    // Define headers
+    const headers = [
+      'Age',
+      'Baseline q(x)', 'Baseline l(x)', 'Baseline e(x)',
+      'Adjusted q(x)', 'Adjusted l(x)', 'Adjusted e(x)'
+    ];
+
+    // Convert data to CSV rows
+    const rows = currentData.map(row => [
+      row.age,
+      row.baseline.q.toFixed(5),
+      row.baseline.l,
+      row.baseline.e.toFixed(2),
+      row.adjusted.q.toFixed(5),
+      row.adjusted.l,
+      row.adjusted.e.toFixed(2)
+    ]);
+
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    // Create blob and download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `life_table_${nutsId}_${selectedSSP}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Calculate financial impact
   // Logic: 
   // Longer life (e_adj > e_base) -> Loss in Annuities, Profit in Life Insurance
@@ -346,12 +383,19 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
           </table>
         </div>
         
-        <div className="p-3 border-t border-gray-200 bg-gray-50 text-center">
+        <div className="p-3 border-t border-gray-200 bg-gray-50 flex justify-center space-x-4">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="text-sm font-medium text-blue-600 hover:text-blue-800 focus:outline-none"
           >
             {isExpanded ? 'Collapse Table' : 'Show Full Table (100 rows)'}
+          </button>
+          <span className="text-gray-300">|</span>
+          <button
+            onClick={handleExportCSV}
+            className="text-sm font-medium text-blue-600 hover:text-blue-800 focus:outline-none"
+          >
+            Export CSV
           </button>
         </div>
       </div>
