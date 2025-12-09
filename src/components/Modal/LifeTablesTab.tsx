@@ -187,15 +187,22 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
     const e0_adj = currentData[0].adjusted.e;
     const diff_percent = (e0_adj - e0_base) / e0_base;
 
+    // Demographic Sensitivity Factors
+    // Heatwaves disproportionately affect the elderly.
+    // Annuity portfolios are typically older (more sensitive to heat mortality).
+    // Life Insurance portfolios are typically younger (less sensitive).
+    const annuitySensitivity = 1.2; // 20% more sensitive
+    const lifeInsuranceSensitivity = 0.8; // 20% less sensitive
+
     // Impact on Annuities: 
     // If people live 1% longer, annuity costs increase by roughly 1% (simplified)
     // Loss = negative impact
-    const annuityImpact = -1 * diff_percent * (portfolioSize * (annuityShare / 100));
+    const annuityImpact = -1 * diff_percent * (portfolioSize * (annuityShare / 100)) * annuitySensitivity;
 
     // Impact on Life Insurance:
     // If people live 1% longer, claims are delayed, profit increases
     // Profit = positive impact
-    const lifeInsuranceImpact = diff_percent * (portfolioSize * (lifeInsuranceShare / 100));
+    const lifeInsuranceImpact = diff_percent * (portfolioSize * (lifeInsuranceShare / 100)) * lifeInsuranceSensitivity;
 
     return {
       annuity: annuityImpact,
@@ -253,6 +260,9 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
       {/* Financial Impact Calculator */}
       <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
         <h3 className="text-lg font-semibold mb-4">Financial Impact Calculator</h3>
+        <p className="text-sm text-gray-500 mb-4 italic">
+          Note: Model assumes annuity holders are older and more sensitive to heat-related mortality (1.2x factor) compared to life insurance policyholders (0.8x factor).
+        </p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
