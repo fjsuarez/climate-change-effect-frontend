@@ -146,9 +146,13 @@ export const LifeTablesTab = ({ nutsId }: { nutsId: string }) => {
                 Portfolio Size (€)
               </label>
               <input
-                type="number"
-                value={portfolioSize}
-                onChange={(e) => setPortfolioSize(Number(e.target.value))}
+                type="text"
+                value={portfolioSize.toLocaleString()}
+                onChange={(e) => {
+                  // Remove non-numeric chars and parse
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setPortfolioSize(val ? parseInt(val, 10) : 0);
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
