@@ -147,7 +147,7 @@ export default function ClimateMap() {
   // Expose map instance to window for console debugging (screencast purposes)
   const handleMapLoad = () => {
     if (mapRef.current) {
-      // @ts-ignore - Expose for console access
+      // @ts-expect-error - Expose for console access
       window.myMap = mapRef.current.getMap();
       console.log('🗺️  Map exposed as window.myMap - Use for screencast animations!');
     }
