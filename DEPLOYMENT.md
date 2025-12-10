@@ -43,7 +43,7 @@ Click **"Environment Variables"** and add:
 ### 6. Update Backend CORS (After Deployment)
 Go back to Railway and add this environment variable:
 - **Name**: `ALLOWED_ORIGINS`
-- **Value**: `https://your-vercel-app.vercel.app,http://localhost:3000`
+- **Value**: `https://your-vercel-app.vercel.app,https://dashboard.climateinsure.tech,http://localhost:3000`
 
 Replace `your-vercel-app` with your actual Vercel URL.
 
