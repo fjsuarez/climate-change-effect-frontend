@@ -117,6 +117,20 @@ class ClimateAPI {
   }
 
   /**
+   * Fetch cities with ERF data and their coordinates
+   */
+  async getCitiesWithERF(): Promise<CitiesGeoJSON> {
+    const url = `${this.baseUrl}/api/v1/cities/with-erf`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch cities with ERF: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
    * Fetch B-spline coefficients data
    */
   async getCoefficients(): Promise<BSplineCoefficient[]> {
@@ -256,6 +270,28 @@ export interface TemperatureHistogram {
   bins_total: number;
   total_days: number;
   data: TemperatureHistogramBin[];
+}
+
+// City with ERF data and coordinates
+export interface CityWithERF {
+  urau_code: string;
+  name: string;
+  country: string;
+}
+
+// GeoJSON types for cities
+export interface CityFeature {
+  type: 'Feature';
+  geometry: {
+    type: 'Point';
+    coordinates: [number, number]; // [longitude, latitude]
+  };
+  properties: CityWithERF;
+}
+
+export interface CitiesGeoJSON {
+  type: 'FeatureCollection';
+  features: CityFeature[];
 }
 
 // Export singleton instance
