@@ -23,6 +23,7 @@ export default function ClimateMap() {
     selectedRegion,
     zoom,
     center,
+    showCityBubbles,
     setSelectedRegion,
     setMapView,
   } = useAppStore();
@@ -282,7 +283,7 @@ export default function ClimateMap() {
         )}
         
         {/* City bubbles for cities with ERF data */}
-        {citiesData && (
+        {showCityBubbles && citiesData && (
           <Source
             id="city-bubbles"
             type="geojson"
@@ -295,7 +296,7 @@ export default function ClimateMap() {
       </Map>
 
       {/* City tooltip - positioned near cursor */}
-      {hoveredCity && citiesData && tooltipPosition && (
+      {showCityBubbles && hoveredCity && citiesData && tooltipPosition && (
         <div 
           className="absolute bg-white px-3 py-2 rounded shadow-lg z-10 pointer-events-none"
           style={{
