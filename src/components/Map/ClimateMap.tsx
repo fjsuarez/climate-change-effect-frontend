@@ -29,6 +29,7 @@ export default function ClimateMap() {
 
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
   const [hoveredCity, setHoveredCity] = useState<string | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Fetch regions once (they don't change)
   const tolerance = isMobile ? 0.01 : 0.001;
@@ -201,9 +202,12 @@ export default function ClimateMap() {
       if (feature.layer?.id === 'city-bubbles') {
         setHoveredCity(feature.properties.urau_code);
         setHoveredRegion(null);
+        // Track mouse position for tooltip
+        setTooltipPosition({ x: event.point.x, y: event.point.y });
       } else {
         setHoveredRegion(feature.properties.NUTS_ID);
         setHoveredCity(null);
+        setTooltipPosition(null);
       }
       if (mapRef.current) {
         mapRef.current.getMap().getCanvas().style.cursor = 'pointer';
@@ -214,6 +218,7 @@ export default function ClimateMap() {
   const handleMouseLeave = () => {
     setHoveredRegion(null);
     setHoveredCity(null);
+    setTooltipPosition(null);
     if (mapRef.current) {
       mapRef.current.getMap().getCanvas().style.cursor = '';
     }
@@ -289,9 +294,16 @@ export default function ClimateMap() {
         )}
       </Map>
 
-      {/* City tooltip */}
-      {hoveredCity && citiesData && (
-        <div className="absolute top-4 right-4 bg-white px-3 py-2 rounded shadow-lg z-10 pointer-events-none">
+      {/* City tooltip - positioned near cursor */}
+      {hoveredCity && citiesData && tooltipPosition && (
+        <div 
+          className="absolute bg-white px-3 py-2 rounded shadow-lg z-10 pointer-events-none"
+          style={{
+            left: tooltipPosition.x + 15,
+            top: tooltipPosition.y - 10,
+            transform: 'translateY(-100%)',
+          }}
+        >
           <p className="text-sm font-semibold text-gray-800">
             {citiesData.features.find(f => f.properties.urau_code === hoveredCity)?.properties.name || hoveredCity}
           </p>
