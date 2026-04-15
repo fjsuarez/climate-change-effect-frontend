@@ -296,3 +296,220 @@ export interface CitiesGeoJSON {
 
 // Export singleton instance
 export const climateAPI = new ClimateAPI(API_BASE_URL);
+
+// =============================================================================
+// ACTUARIAL CLIMATE RISK ENGINE TYPES AND API
+// =============================================================================
+
+// Request/Response types for actuarial endpoints
+export interface PolicyInput {
+  age: number;
+  product_type: 'Annuity' | 'Life Insurance';
+  volume: number;
+}
+
+export interface ClimateRiskRequest {
+  temperature_delta: number;
+  interest_rate?: number;
+  erf_risk_per_degree?: number;
+  erf_nonlinear?: boolean;
+  portfolio?: PolicyInput[];
+  n_policies?: number;  // Number of policies in sample portfolio (if not providing custom portfolio)
+  portfolio_mix?: 'annuity_heavy' | 'balanced' | 'insurance_heavy';  // Portfolio composition
+}
+
+export interface MortalityComparison {
+  age: number;
+  baseline_qx: number;
+  adjusted_qx: number;
+  baseline_lx: number;
+  adjusted_lx: number;
+  baseline_ex: number;
+  adjusted_ex: number;
+}
+
+export interface MortalitySummary {
+  baseline_life_expectancy: number;
+  adjusted_life_expectancy: number;
+  life_expectancy_change_years: number;
+  average_mortality_increase_pct: number;
+}
+
+export interface MortalityComparisonResponse {
+  scenario: {
+    temperature_delta_celsius: number;
+    relative_risk: number;
+    erf_model: string;
+    erf_risk_per_degree: number;
+  };
+  mortality_comparison: MortalityComparison[];
+  summary: MortalitySummary;
+}
+
+export interface ReserveBreakdown {
+  annuities: number;
+  life_insurance: number;
+  total: number;
+}
+
+export interface ClimateImpactDelta extends ReserveBreakdown {
+  total_pct_change: number;
+  annuities_interpretation?: string;
+  life_insurance_interpretation?: string;
+}
+
+export interface ClimateImpactResponse {
+  scenario: {
+    temperature_delta_celsius: number;
+    relative_risk: number;
+    interest_rate: number;
+    erf_model: string;
+  };
+  mortality_impact: MortalitySummary;
+  baseline_reserves: ReserveBreakdown;
+  adjusted_reserves: ReserveBreakdown;
+  climate_impact_delta: ClimateImpactDelta;
+  portfolio_stats: {
+    n_policies: number;
+    n_annuities: number;
+    n_life_insurance: number;
+    total_annuity_volume: number;
+    total_life_insurance_volume: number;
+  };
+}
+
+export interface ScenarioResult {
+  temperature_delta: number;
+  relative_risk: number;
+  life_expectancy_change: number;
+  baseline_reserves: number;
+  adjusted_reserves: number;
+  delta_total: number;
+  delta_pct: number;
+  delta_annuities: number;
+  delta_life_insurance: number;
+}
+
+export interface MultiScenarioResponse {
+  parameters: {
+    interest_rate: number;
+    erf_model: string;
+    erf_risk_per_degree: number;
+    n_policies: number;
+  };
+  scenarios: ScenarioResult[];
+  interpretation: {
+    annuities: string;
+    life_insurance: string;
+    total: string;
+  };
+}
+
+export interface SampleActuarialData {
+  mortality_table: Array<{ age: number; qx: number }>;
+  portfolio: PolicyInput[];
+  description: {
+    mortality_table: string;
+    portfolio: string;
+  };
+}
+
+// Actuarial API class
+class ActuarialAPI {
+  private baseUrl: string;
+
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
+  }
+
+  /**
+   * Get sample mortality table and portfolio data
+   */
+  async getSampleData(): Promise<SampleActuarialData> {
+    const url = `${this.baseUrl}/api/v1/actuarial/sample-data`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch sample data: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Adjust mortality table with temperature shock
+   */
+  async adjustMortality(
+    temperatureDelta: number = 2.5,
+    erfRiskPerDegree: number = 0.02,
+    erfNonlinear: boolean = false
+  ): Promise<MortalityComparisonResponse> {
+    const params = new URLSearchParams({
+      temperature_delta: temperatureDelta.toString(),
+      erf_risk_per_degree: erfRiskPerDegree.toString(),
+      erf_nonlinear: erfNonlinear.toString(),
+    });
+
+    const url = `${this.baseUrl}/api/v1/actuarial/adjust-mortality?${params.toString()}`;
+    const response = await fetch(url, { method: 'POST' });
+
+    if (!response.ok) {
+      throw new Error(`Failed to adjust mortality: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Perform full climate risk analysis on portfolio
+   */
+  async analyzeClimateRisk(request: ClimateRiskRequest): Promise<ClimateImpactResponse> {
+    const url = `${this.baseUrl}/api/v1/actuarial/climate-risk-analysis`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to analyze climate risk: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Analyze multiple temperature scenarios for stress testing
+   */
+  async analyzeMultipleScenarios(
+    temperatureScenarios: number[] = [1.5, 2.0, 2.5, 3.0],
+    interestRate: number = 0.01,
+    erfRiskPerDegree: number = 0.02,
+    erfNonlinear: boolean = false,
+    nPolicies: number = 100
+  ): Promise<MultiScenarioResponse> {
+    const params = new URLSearchParams({
+      interest_rate: interestRate.toString(),
+      erf_risk_per_degree: erfRiskPerDegree.toString(),
+      erf_nonlinear: erfNonlinear.toString(),
+      n_policies: nPolicies.toString(),
+    });
+
+    // Add each temperature scenario
+    temperatureScenarios.forEach(temp => {
+      params.append('temperature_scenarios', temp.toString());
+    });
+
+    const url = `${this.baseUrl}/api/v1/actuarial/multi-scenario-analysis?${params.toString()}`;
+    const response = await fetch(url, { method: 'POST' });
+
+    if (!response.ok) {
+      throw new Error(`Failed to analyze scenarios: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+}
+
+// Export singleton instance
+export const actuarialAPI = new ActuarialAPI(API_BASE_URL);

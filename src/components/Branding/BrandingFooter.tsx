@@ -10,7 +10,7 @@ export default function BrandingFooter() {
         <div className="flex items-center gap-2">
           <div className="relative w-16 h-8 md:w-20 md:h-10">
             <Image
-              src="/Vienna_Insurance_Group.svg"
+              src="/VIG_Logo_sRGB_1C.png"
               alt="Vienna Insurance Group"
               fill
               className="object-contain"
