@@ -71,3 +71,14 @@ export function useHealthCheck() {
     refetchInterval: 1000 * 60, // Check every minute
   });
 }
+
+/**
+ * Hook to fetch cities with ERF (Exposure-Response Function) data and coordinates
+ */
+export function useCitiesWithERF() {
+  return useQuery({
+    queryKey: ['cities-with-erf'],
+    queryFn: () => climateAPI.getCitiesWithERF(),
+    staleTime: Infinity, // Cities don't change, cache forever
+  });
+}

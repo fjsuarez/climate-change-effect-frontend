@@ -9,6 +9,7 @@ import TimeSeriesChart from '@/components/Charts/TimeSeriesChart';
 import ScatterPlot from '@/components/Charts/ScatterPlot';
 import { RelativeRiskTab } from './RelativeRiskTab';
 import { LifeTablesTab } from './LifeTablesTab';
+import { ActuarialTab } from './ActuarialTab';
 import { CLIMATE_METRICS, ClimateMetric } from '@/lib/types';
 import { getMetricLabel, formatMetricValue } from '@/lib/metricConfig';
 import { useState, useMemo } from 'react';
@@ -107,11 +108,22 @@ export default function RegionDetailModal() {
 
           {!isLoading && !error && data && data.data.length > 0 && (
             <Tabs defaultValue="timeseries" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="timeseries">Time Series</TabsTrigger>
                 <TabsTrigger value="correlation">Correlation</TabsTrigger>
                 <TabsTrigger value="relativerisk">Relative Risk</TabsTrigger>
-                <TabsTrigger value="lifetables">Life Tables</TabsTrigger>
+                <TabsTrigger value="lifetables" className="relative">
+                  Life Tables
+                  <span className="absolute -top-1 -right-1 px-1 py-0.5 text-[8px] font-bold bg-amber-400 text-amber-900 rounded">
+                    DRAFT
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="actuarial" className="relative">
+                  Actuarial
+                  <span className="absolute -top-1 -right-1 px-1 py-0.5 text-[8px] font-bold bg-amber-400 text-amber-900 rounded">
+                    DRAFT
+                  </span>
+                </TabsTrigger>
                 <TabsTrigger value="summary">Summary</TabsTrigger>
               </TabsList>
 
@@ -165,6 +177,11 @@ export default function RegionDetailModal() {
               {/* Life Tables Tab */}
               <TabsContent value="lifetables" className="space-y-4">
                 <LifeTablesTab nutsId={selectedRegion} />
+              </TabsContent>
+
+              {/* Actuarial Climate Risk Tab */}
+              <TabsContent value="actuarial" className="space-y-4">
+                <ActuarialTab nutsId={selectedRegion} />
               </TabsContent>
 
               {/* Summary Tab */}

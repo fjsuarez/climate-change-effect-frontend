@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import Map, { Source, Layer, MapRef } from 'react-map-gl/mapbox';
 import type { MapMouseEvent } from 'mapbox-gl';
 import { useAppStore } from '@/lib/store';
-import { useRegions, useMetricSnapshot, useMetricRange } from '@/hooks/useClimateData';
+import { useRegions, useMetricSnapshot, useMetricRange, useCitiesWithERF } from '@/hooks/useClimateData';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { MapLegend } from './MapLegend';
 import type { ClimateMetric } from '@/lib/types';
@@ -23,11 +23,14 @@ export default function ClimateMap() {
     selectedRegion,
     zoom,
     center,
+    showCityBubbles,
     setSelectedRegion,
     setMapView,
   } = useAppStore();
 
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
+  const [hoveredCity, setHoveredCity] = useState<string | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Fetch regions once (they don't change)
   const tolerance = isMobile ? 0.01 : 0.001;
@@ -42,6 +45,9 @@ export default function ClimateMap() {
 
   // Fetch global range for the metric (for consistent color scale)
   const { data: metricRange } = useMetricRange(selectedMetric as ClimateMetric);
+
+  // Fetch cities with ERF data
+  const { data: citiesData } = useCitiesWithERF();
 
   // Merge regions with metric values - memoized to prevent unnecessary re-renders
   const geoJsonWithValues = useMemo(() => {
@@ -135,12 +141,48 @@ export default function ClimateMap() {
     ] as any,
   };
 
+  // City bubble layer for cities with ERF data
+  const cityBubbleLayer = {
+    id: 'city-bubbles',
+    type: 'circle' as const,
+    paint: {
+      'circle-radius': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        4, 4,
+        6, 6,
+        8, 8,
+        10, 10,
+      ] as any,
+      'circle-color': '#e74c3c',  // Red color for visibility
+      'circle-stroke-color': '#ffffff',
+      'circle-stroke-width': 2,
+      'circle-opacity': [
+        'case',
+        ['boolean', ['feature-state', 'hover'], false],
+        1,
+        0.8,
+      ] as any,
+    },
+  };
+
   // Handle region click
   const handleClick = (event: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
     const feature = event.features?.[0];
     if (feature && feature.properties) {
+      // Check if clicked on a city bubble
+      if (feature.layer?.id === 'city-bubbles') {
+        const urauCode = feature.properties.urau_code;
+        console.log('Clicked city:', urauCode, feature.properties.name);
+        // For now, just log - in the future this could open a city detail modal
+        return;
+      }
+      // Otherwise, handle region click
       const nutsId = feature.properties.NUTS_ID;
-      setSelectedRegion(nutsId);
+      if (nutsId) {
+        setSelectedRegion(nutsId);
+      }
     }
   };
 
@@ -157,7 +199,17 @@ export default function ClimateMap() {
   const handleMouseMove = (event: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
     const feature = event.features?.[0];
     if (feature && feature.properties) {
-      setHoveredRegion(feature.properties.NUTS_ID);
+      // Check if hovering over a city bubble
+      if (feature.layer?.id === 'city-bubbles') {
+        setHoveredCity(feature.properties.urau_code);
+        setHoveredRegion(null);
+        // Track mouse position for tooltip
+        setTooltipPosition({ x: event.point.x, y: event.point.y });
+      } else {
+        setHoveredRegion(feature.properties.NUTS_ID);
+        setHoveredCity(null);
+        setTooltipPosition(null);
+      }
       if (mapRef.current) {
         mapRef.current.getMap().getCanvas().style.cursor = 'pointer';
       }
@@ -166,12 +218,14 @@ export default function ClimateMap() {
 
   const handleMouseLeave = () => {
     setHoveredRegion(null);
+    setHoveredCity(null);
+    setTooltipPosition(null);
     if (mapRef.current) {
       mapRef.current.getMap().getCanvas().style.cursor = '';
     }
   };
 
-  // Update feature state for hover and selection
+  // Update feature state for hover and selection (regions)
   useEffect(() => {
     const map = mapRef.current?.getMap();
     if (!map || !geoJsonWithValues) return;
@@ -206,7 +260,7 @@ export default function ClimateMap() {
         }}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/light-v11"
-        interactiveLayerIds={['climate-data']}
+        interactiveLayerIds={['climate-data', 'city-bubbles']}
         onClick={handleClick}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -227,7 +281,36 @@ export default function ClimateMap() {
             <Layer {...outlineLayer} />
           </Source>
         )}
+        
+        {/* City bubbles for cities with ERF data */}
+        {showCityBubbles && citiesData && (
+          <Source
+            id="city-bubbles"
+            type="geojson"
+            data={citiesData}
+            promoteId="urau_code"
+          >
+            <Layer {...cityBubbleLayer} />
+          </Source>
+        )}
       </Map>
+
+      {/* City tooltip - positioned near cursor */}
+      {showCityBubbles && hoveredCity && citiesData && tooltipPosition && (
+        <div 
+          className="absolute bg-white px-3 py-2 rounded shadow-lg z-10 pointer-events-none"
+          style={{
+            left: tooltipPosition.x + 15,
+            top: tooltipPosition.y - 10,
+            transform: 'translateY(-100%)',
+          }}
+        >
+          <p className="text-sm font-semibold text-gray-800">
+            {citiesData.features.find(f => f.properties.urau_code === hoveredCity)?.properties.name || hoveredCity}
+          </p>
+          <p className="text-xs text-gray-500">ERF data available</p>
+        </div>
+      )}
 
       {/* Legend */}
       {metricData && (
