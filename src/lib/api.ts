@@ -298,6 +298,65 @@ export interface CitiesGeoJSON {
 export const climateAPI = new ClimateAPI(API_BASE_URL);
 
 // =============================================================================
+// MORTALITY MULTIPLIER TYPES AND API
+// =============================================================================
+
+export type AgeGroup = '20-44' | '45-64' | '65-74' | '75-84' | '85+';
+
+export interface MortalityMultiplierPoint {
+  rcp_scenario: string;
+  year: number;
+  multiplier_total: number;
+  multiplier_heat: number;
+  multiplier_cold: number;
+}
+
+export interface MortalityMultiplierResponse {
+  country: string;
+  age_group: AgeGroup;
+  data: MortalityMultiplierPoint[];
+}
+
+class MortalityMultiplierAPI {
+  private baseUrl: string;
+  constructor(baseUrl: string) { this.baseUrl = baseUrl; }
+
+  async getByCountry(
+    countryCode: string,
+    ageGroup: AgeGroup = '65-74'
+  ): Promise<MortalityMultiplierResponse> {
+    const params = new URLSearchParams({ age_group: ageGroup });
+    const url = `${this.baseUrl}/api/v1/mortality-multiplier/${countryCode}?${params}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch mortality multiplier: ${response.statusText}`);
+    }
+    return response.json();
+  }
+
+  /** Returns {country_code: multiplier_total} snapshot for choropleth rendering */
+  async getSnapshot(
+    year: number,
+    rcpScenario: string = 'RCP 4.5',
+    ageGroup: AgeGroup = '65-74'
+  ): Promise<Record<string, number>> {
+    const params = new URLSearchParams({
+      year: year.toString(),
+      rcp_scenario: rcpScenario,
+      age_group: ageGroup,
+    });
+    const url = `${this.baseUrl}/api/v1/mortality-multiplier/snapshot?${params}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch mortality snapshot: ${response.statusText}`);
+    }
+    return response.json();
+  }
+}
+
+export const mortalityMultiplierAPI = new MortalityMultiplierAPI(API_BASE_URL);
+
+// =============================================================================
 // ACTUARIAL CLIMATE RISK ENGINE TYPES AND API
 // =============================================================================
 

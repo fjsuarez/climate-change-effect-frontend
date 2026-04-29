@@ -1,8 +1,9 @@
 // Custom hooks for data fetching with React Query
 
 import { useQuery } from '@tanstack/react-query';
-import { climateAPI } from '@/lib/api';
+import { climateAPI, mortalityMultiplierAPI } from '@/lib/api';
 import type { ClimateMetric, MetricSnapshot } from '@/lib/types';
+import type { AgeGroup } from '@/lib/api';
 
 /**
  * Hook to fetch regions with optional geometry simplification
@@ -21,24 +22,27 @@ export function useRegions(tolerance?: number) {
 export function useMetricSnapshot(
   metric: ClimateMetric,
   year: number,
-  week: number
+  week: number,
+  enabled: boolean = true
 ) {
   return useQuery({
     queryKey: ['metric-snapshot', metric, year, week],
     queryFn: () => climateAPI.getMetricSnapshot(metric, year, week),
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    placeholderData: (previousData: MetricSnapshot | undefined) => previousData, // Keep previous data while loading
+    enabled,
+    staleTime: 1000 * 60 * 5,
+    placeholderData: (previousData: MetricSnapshot | undefined) => previousData,
   });
 }
 
 /**
  * Hook to fetch global min/max range for a metric
  */
-export function useMetricRange(metric: ClimateMetric) {
+export function useMetricRange(metric: ClimateMetric, enabled: boolean = true) {
   return useQuery({
     queryKey: ['metric-range', metric],
     queryFn: () => climateAPI.getMetricRange(metric),
-    staleTime: Infinity, // Range doesn't change, cache forever
+    enabled,
+    staleTime: Infinity,
   });
 }
 
@@ -48,7 +52,8 @@ export function useMetricRange(metric: ClimateMetric) {
 export function useTimeSeries(
   nutsId: string | null,
   metric1: ClimateMetric,
-  metric2?: ClimateMetric
+  metric2?: ClimateMetric,
+  enabled: boolean = true
 ) {
   return useQuery({
     queryKey: ['timeseries', nutsId, metric1, metric2],
@@ -56,8 +61,8 @@ export function useTimeSeries(
       if (!nutsId) throw new Error('No region selected');
       return climateAPI.getTimeSeries(nutsId, metric1, metric2);
     },
-    enabled: !!nutsId, // Only run query if nutsId is provided
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: !!nutsId && enabled,
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -80,5 +85,40 @@ export function useCitiesWithERF() {
     queryKey: ['cities-with-erf'],
     queryFn: () => climateAPI.getCitiesWithERF(),
     staleTime: Infinity, // Cities don't change, cache forever
+  });
+}
+
+/**
+ * Hook to fetch mortality multiplier data for a country and age group
+ */
+export function useMortalityMultiplier(
+  countryCode: string | null,
+  ageGroup: AgeGroup = '65-74'
+) {
+  return useQuery({
+    queryKey: ['mortality-multiplier', countryCode, ageGroup],
+    queryFn: () => {
+      if (!countryCode) throw new Error('No country selected');
+      return mortalityMultiplierAPI.getByCountry(countryCode, ageGroup);
+    },
+    enabled: !!countryCode,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+}
+
+/**
+ * Hook to fetch mortality multiplier snapshot for choropleth map
+ */
+export function useMortalitySnapshot(
+  year: number,
+  rcpScenario: string,
+  ageGroup: AgeGroup,
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: ['mortality-snapshot', year, rcpScenario, ageGroup],
+    queryFn: () => mortalityMultiplierAPI.getSnapshot(year, rcpScenario, ageGroup),
+    enabled,
+    staleTime: 1000 * 60 * 60,
   });
 }

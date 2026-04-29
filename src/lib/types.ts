@@ -55,11 +55,11 @@ export const CLIMATE_METRICS = [
   'temp_era5_q50',
   'temp_rcp45',
   'temp_rcp85',
-  'mortality_rate',
   'pm10',
   'O3',
   'NOx',
   'population_density',
+  'mortality_multiplier',
 ] as const;
 
 export type ClimateMetric = typeof CLIMATE_METRICS[number];
@@ -70,4 +70,6 @@ export const DATE_RANGE = {
   maxYear: 2100,
   minWeek: 1,
   maxWeek: 52,
+  mortalityMinYear: 2015,
+  mortalityMaxYear: 2099,
 } as const;

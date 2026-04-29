@@ -4,10 +4,11 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import Map, { Source, Layer, MapRef } from 'react-map-gl/mapbox';
 import type { MapMouseEvent } from 'mapbox-gl';
 import { useAppStore } from '@/lib/store';
-import { useRegions, useMetricSnapshot, useMetricRange, useCitiesWithERF } from '@/hooks/useClimateData';
+import { useRegions, useMetricSnapshot, useMetricRange, useCitiesWithERF, useMortalitySnapshot } from '@/hooks/useClimateData';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { MapLegend } from './MapLegend';
 import type { ClimateMetric } from '@/lib/types';
+import type { AgeGroup } from '@/lib/api';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || '';
@@ -24,9 +25,14 @@ export default function ClimateMap() {
     zoom,
     center,
     showCityBubbles,
+    selectedRcp,
+    selectedMortalityAgeGroup,
     setSelectedRegion,
     setMapView,
+    setShowCityBubbles,
   } = useAppStore();
+
+  const isMortalityMetric = selectedMetric === 'mortality_multiplier';
 
   const [hoveredRegion, setHoveredRegion] = useState<string | null>(null);
   const [hoveredCity, setHoveredCity] = useState<string | null>(null);
@@ -36,23 +42,53 @@ export default function ClimateMap() {
   const tolerance = isMobile ? 0.01 : 0.001;
   const { data: regionsData, isLoading: regionsLoading } = useRegions(tolerance);
   
-  // Fetch metric data (changes with year/week/metric)
+  // Fetch metric data (changes with year/week/metric) — skip for mortality_multiplier
   const { data: metricData, isLoading: metricLoading } = useMetricSnapshot(
     selectedMetric as ClimateMetric,
     selectedYear,
-    selectedWeek
+    selectedWeek,
+    !isMortalityMetric
   );
 
-  // Fetch global range for the metric (for consistent color scale)
-  const { data: metricRange } = useMetricRange(selectedMetric as ClimateMetric);
+  // Fetch global range for the metric (for consistent color scale) — skip for mortality
+  const { data: metricRange } = useMetricRange(selectedMetric as ClimateMetric, !isMortalityMetric);
+
+  // Fetch mortality snapshot when mortality_multiplier metric is selected
+  const { data: mortalitySnapshot, isLoading: mortalityLoading } = useMortalitySnapshot(
+    selectedYear,
+    selectedRcp,
+    selectedMortalityAgeGroup as AgeGroup,
+    isMortalityMetric
+  );
+
+  const isLoading = isMortalityMetric ? mortalityLoading : metricLoading;
 
   // Fetch cities with ERF data
   const { data: citiesData } = useCitiesWithERF();
 
   // Merge regions with metric values - memoized to prevent unnecessary re-renders
   const geoJsonWithValues = useMemo(() => {
-    if (!regionsData || !metricData) return null;
-    
+    if (!regionsData) return null;
+
+    if (isMortalityMetric) {
+      if (!mortalitySnapshot) return null;
+      // Mortality data is country-level: key is 2-char country code (NUTS-0)
+      return {
+        type: 'FeatureCollection' as const,
+        features: regionsData.features.map((feature) => {
+          const nutsId = feature.properties.NUTS_ID;
+          // Only NUTS-0 (2-char) entries have data; sub-regions get null
+          const value = nutsId.length === 2 ? (mortalitySnapshot[nutsId] ?? null) : null;
+          return {
+            ...feature,
+            id: nutsId,
+            properties: { ...feature.properties, value },
+          };
+        }),
+      };
+    }
+
+    if (!metricData) return null;
     return {
       type: 'FeatureCollection' as const,
       features: regionsData.features.map((feature) => ({
@@ -60,30 +96,46 @@ export default function ClimateMap() {
         id: feature.properties.NUTS_ID,
         properties: {
           ...feature.properties,
-          value: metricData[feature.properties.NUTS_ID] || null
-        }
-      }))
+          value: metricData[feature.properties.NUTS_ID] || null,
+        },
+      })),
     };
-  }, [regionsData, metricData]);
+  }, [regionsData, metricData, mortalitySnapshot, isMortalityMetric]);
 
-  // Use global min/max for consistent scale, or fallback to defaults
-  const minValue = metricRange?.min_value ?? -20;
-  const maxValue = metricRange?.max_value ?? 40;
+  // Color scale bounds
+  // Mortality uses a symmetric scale clamped at ±0.04 around baseline (1.0).
+  // This covers ~95% of the data with full color variation; the rare outliers above
+  // 1.04 naturally render as the deepest red via Mapbox's interpolation clamping,
+  // so they stay visible without compressing the majority of countries into a
+  // near-white band. Scale is fixed so colors are comparable across years/scenarios.
+  const MORTALITY_MIN = 0.96;
+  const MORTALITY_MAX = 1.04;
+  const minValue = isMortalityMetric ? MORTALITY_MIN : (metricRange?.min_value ?? -20);
+  const maxValue = isMortalityMetric ? MORTALITY_MAX : (metricRange?.max_value ?? 40);
 
   // Choropleth layer style with zoom-based filtering
   const dataLayer = {
     id: 'climate-data',
     type: 'fill' as const,
     paint: {
-      'fill-color': [
-        'interpolate',
-        ['linear'],
-        ['get', 'value'],
-        -20, '#0000ff',
-        0, '#00ffff',
-        20, '#ffff00',
-        40, '#ff0000',
-      ] as any,
+      'fill-color': isMortalityMetric
+        ? ([
+            'interpolate',
+            ['linear'],
+            ['get', 'value'],
+            minValue, '#2563eb',  // blue = lower mortality
+            1.0,       '#f9fafb', // white = baseline
+            maxValue, '#dc2626',  // red = higher mortality
+          ] as any)
+        : ([
+            'interpolate',
+            ['linear'],
+            ['get', 'value'],
+            -20, '#0000ff',
+            0, '#00ffff',
+            20, '#ffff00',
+            40, '#ff0000',
+          ] as any),
       'fill-opacity': [
         'interpolate',
         ['linear'],
@@ -111,13 +163,16 @@ export default function ClimateMap() {
         ],
       ] as any,
     },
-    filter: [
-      'any',
-      // Show NUTS 0 (countries - 2 chars) at zoom < 5.5 (extended range to reduce artifacts)
-      ['all', ['<', ['zoom'], 5.5], ['==', ['length', ['get', 'NUTS_ID']], 2]],
-      // Show NUTS 3 (regions - 5 chars) at zoom >= 4.5 (start earlier for smoother transition)
-      ['all', ['>=', ['zoom'], 4.5], ['==', ['length', ['get', 'NUTS_ID']], 5]],
-    ] as any,
+    filter: isMortalityMetric
+      // Mortality is country-level only — always show NUTS-0
+      ? (['==', ['length', ['get', 'NUTS_ID']], 2] as any)
+      : ([
+          'any',
+          // Show NUTS 0 (countries - 2 chars) at zoom < 5.5
+          ['all', ['<', ['zoom'], 5.5], ['==', ['length', ['get', 'NUTS_ID']], 2]],
+          // Show NUTS 3 (regions - 5 chars) at zoom >= 4.5
+          ['all', ['>=', ['zoom'], 4.5], ['==', ['length', ['get', 'NUTS_ID']], 5]],
+        ] as any),
   };
 
   const outlineLayer = {
@@ -132,13 +187,13 @@ export default function ClimateMap() {
         1,
       ] as any,
     },
-    filter: [
-      'any',
-      // Show NUTS 0 (countries - 2 chars) at zoom < 5.5 (extended range to reduce artifacts)
-      ['all', ['<', ['zoom'], 5.5], ['==', ['length', ['get', 'NUTS_ID']], 2]],
-      // Show NUTS 3 (regions - 5 chars) at zoom >= 4.5 (start earlier for smoother transition)
-      ['all', ['>=', ['zoom'], 4.5], ['==', ['length', ['get', 'NUTS_ID']], 5]],
-    ] as any,
+    filter: isMortalityMetric
+      ? (['==', ['length', ['get', 'NUTS_ID']], 2] as any)
+      : ([
+          'any',
+          ['all', ['<', ['zoom'], 5.5], ['==', ['length', ['get', 'NUTS_ID']], 2]],
+          ['all', ['>=', ['zoom'], 4.5], ['==', ['length', ['get', 'NUTS_ID']], 5]],
+        ] as any),
   };
 
   // City bubble layer for cities with ERF data
@@ -191,6 +246,10 @@ export default function ClimateMap() {
     if (mapRef.current) {
       // @ts-expect-error - Expose for console access
       window.myMap = mapRef.current.getMap();
+      // @ts-expect-error - Expose for screencast scripts
+      window.selectRegion = setSelectedRegion;
+      // @ts-expect-error - Expose for screencast scripts
+      window.setShowCityBubbles = setShowCityBubbles;
       console.log('🗺️  Map exposed as window.myMap - Use for screencast animations!');
     }
   };
@@ -313,16 +372,17 @@ export default function ClimateMap() {
       )}
 
       {/* Legend */}
-      {metricData && (
+      {(metricData || mortalitySnapshot) && (
         <MapLegend
           minValue={minValue}
           maxValue={maxValue}
           metric={selectedMetric}
+          diverging={isMortalityMetric}
         />
       )}
 
       {/* Loading indicator */}
-      {(regionsLoading || metricLoading) && (
+      {(regionsLoading || isLoading) && (
         <div className="absolute top-4 left-4 bg-white px-4 py-2 rounded shadow">
           Loading...
         </div>

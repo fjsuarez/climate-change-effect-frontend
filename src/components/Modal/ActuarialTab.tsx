@@ -371,9 +371,8 @@ export const ActuarialTab: React.FC<ActuarialTabProps> = ({ nutsId }) => {
               />
               <Tooltip 
                 formatter={(value: number, name: string) => {
-                  if (name.includes('Reserve')) return [formatCurrency(value), name];
-                  if (name.includes('Life')) return [`${value.toFixed(2)} yrs`, name];
-                  return [value, name];
+                  if (name === 'Life Exp. Change') return [`${value.toFixed(2)} yrs`, name];
+                  return [formatCurrency(value), name];
                 }}
               />
               <Legend />

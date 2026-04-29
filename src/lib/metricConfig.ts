@@ -15,6 +15,7 @@ export const METRIC_CONFIG: Record<string, MetricConfig> = {
   O3: { unit: ' µg/m³', label: 'Ozone (O₃)', decimals: 1 },
   NOx: { unit: ' µg/m³', label: 'Nitrogen Oxides (NOx)', decimals: 1 },
   population_density: { unit: ' per km²', label: 'Population Density', decimals: 0 },
+  mortality_multiplier: { unit: 'x', label: 'Mortality Multiplier', decimals: 4 },
 };
 
 /**
